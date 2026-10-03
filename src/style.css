@@ -1,0 +1,1256 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --ink: #2b2d42;
+  --ink-soft: #62688a;
+  --card: #ffffff;
+  --line: #c9d6e8;
+  --sky-top: #9fdcff;
+  --sky-bottom: #eaf8ff;
+  --go: #2dc653;
+  --go-dark: #1f9e41;
+  --go-soft: #d6f8df;
+  --child: #ff9f1c;
+  --child-dark: #d97b00;
+  --child-soft: #fff1d0;
+  --parent: #4d8dff;
+  --parent-dark: #2f6fe0;
+  --parent-soft: #dfeaff;
+  --bad: #ff5d73;
+  --radius: 24px;
+  --shadow: 0 6px 0 rgba(43, 45, 66, 0.14);
+
+  font-family: ui-rounded, 'SF Pro Rounded', 'Sukhumvit Set', 'Thonburi', 'Leelawadee UI', 'Noto Sans Thai',
+    system-ui, sans-serif;
+  color: var(--ink);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  background: linear-gradient(var(--sky-top), var(--sky-bottom));
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* ---------- หน้าจอทั่วไป ---------- */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  text-align: center;
+}
+
+.screen-main {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.title {
+  font-size: clamp(2.2rem, 7vmin, 4.2rem);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.subtitle {
+  font-size: clamp(1.05rem, 2.6vmin, 1.4rem);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.topbar {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-title {
+  font-size: clamp(1.4rem, 4vmin, 2.2rem);
+  font-weight: 900;
+  text-align: left;
+}
+
+/* ---------- ปุ่ม ---------- */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.4rem;
+  font-weight: 800;
+  overflow: hidden;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+
+.btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(43, 45, 66, 0.14);
+}
+
+.btn small {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.btn-go {
+  background: var(--go);
+  color: #fff;
+  box-shadow: 0 8px 0 var(--go-dark);
+}
+
+.btn-go:active {
+  box-shadow: 0 3px 0 var(--go-dark);
+}
+
+.btn-xl {
+  min-height: 112px;
+  padding: 14px 60px;
+  font-size: clamp(2rem, 6vmin, 2.8rem);
+}
+
+.btn-small {
+  align-self: flex-start;
+  min-height: 56px;
+  font-size: 1.1rem;
+  background: #eef3fa;
+  box-shadow: none;
+}
+
+.btn-round {
+  width: 68px;
+  min-height: 68px;
+  padding: 0;
+  font-size: 2rem;
+  flex: none;
+}
+
+.btn-danger {
+  color: #c2334a;
+}
+
+/* ห้ามเลื่อนจอจากปุ่มนี้ ไม่อย่างนั้น Safari จะยกเลิกการกดค้างเมื่อนิ้วขยับเล็กน้อย */
+.btn-hold {
+  touch-action: none;
+}
+
+/* แถบที่ค่อย ๆ เต็มระหว่างกดค้าง */
+.btn-hold::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 7px;
+  background: var(--go);
+}
+
+.btn-hold.holding::after {
+  width: 100%;
+  transition: width var(--hold-ms, 2000ms) linear;
+}
+
+/* ---------- หน้าแรก ---------- */
+
+.home-art {
+  font-size: clamp(5rem, 20vmin, 9rem);
+  line-height: 1;
+  animation: float 3s ease-in-out infinite;
+}
+
+.home-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* ---------- การ์ดเลือกโซนและโหมด ---------- */
+
+.cards {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 1000px);
+}
+
+.cards-zones {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.cards-modes {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  width: min(100%, 760px);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 190px;
+  padding: 18px 10px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 6px solid var(--accent, var(--line));
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+
+.card:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(43, 45, 66, 0.14);
+}
+
+.card-big {
+  min-height: 260px;
+}
+
+.card-icon {
+  font-size: clamp(3.4rem, 11vmin, 5.5rem);
+  line-height: 1.1;
+}
+
+.card-name {
+  font-size: clamp(1.4rem, 4vmin, 2rem);
+  font-weight: 900;
+}
+
+.card-hint {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+/* ---------- หน้าเล่น ---------- */
+
+.play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 8px;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  touch-action: none;
+}
+
+.panel {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  border: 5px solid var(--side);
+  background: var(--side-soft);
+  overflow: hidden;
+}
+
+.panel-child,
+.track-child,
+.score-child {
+  --side: var(--child);
+  --side-dark: var(--child-dark);
+  --side-soft: var(--child-soft);
+}
+
+.panel-parent,
+.track-parent,
+.score-parent {
+  --side: var(--parent);
+  --side-dark: var(--parent-dark);
+  --side-soft: var(--parent-soft);
+}
+
+.panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 6px 12px;
+  background: var(--side);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.panel-avatar {
+  font-size: 1.8rem;
+}
+
+.panel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.head-btn {
+  flex: none;
+  min-width: 64px;
+  min-height: 48px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.head-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.head-btn:disabled {
+  opacity: 0.5;
+}
+
+/* --u คือหน่วยย่อยของขนาดแผง ใช้ให้โจทย์ขยายตามพื้นที่ของแต่ละฝั่ง */
+.panel-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  --u: min(0.44vw, 0.85vh);
+}
+
+@supports (width: 1cqmin) {
+  .panel-body {
+    container-type: size;
+    --u: 1cqmin;
+  }
+}
+
+.panel-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.panel.stopped {
+  pointer-events: none;
+}
+
+.panel-wait {
+  margin: auto;
+  font-size: calc(22 * var(--u));
+  animation: float 1.2s ease-in-out infinite;
+}
+
+/* ---------- โจทย์แบบเลือกตอบ ---------- */
+
+.quiz,
+.memory {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--u));
+  padding: calc(3 * var(--u));
+}
+
+.quiz-prompt {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2.5 * var(--u));
+}
+
+.quiz-text {
+  font-size: clamp(1.2rem, calc(6.5 * var(--u)), 2.4rem);
+  font-weight: 900;
+  text-align: center;
+}
+
+.vis-item {
+  font-size: calc(13 * var(--u));
+  line-height: 1.15;
+}
+
+.vis-groups {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--u));
+}
+
+.vis-group {
+  display: grid;
+  grid-template-columns: repeat(var(--per-row, 5), auto);
+  justify-items: center;
+  gap: calc(1 * var(--u));
+  padding: calc(2 * var(--u));
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* โจทย์บวกมีสองกลุ่ม จึงย่อให้วางเคียงกันได้ */
+.vis-groups.multi .vis-item {
+  font-size: calc(8.5 * var(--u));
+}
+
+.vis-joiner {
+  font-size: calc(12 * var(--u));
+  font-weight: 900;
+}
+
+.vis-glyph-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(1 * var(--u));
+}
+
+.vis-glyph {
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.vis-glyph.xl {
+  font-size: calc(34 * var(--u));
+}
+
+.vis-glyph.lg {
+  font-size: calc(22 * var(--u));
+}
+
+.vis-glyph.md {
+  font-size: calc(15 * var(--u));
+}
+
+.vis-caption {
+  font-size: calc(6.5 * var(--u));
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+.vis-sequence {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(1.5 * var(--u));
+  padding: calc(2 * var(--u)) calc(3 * var(--u));
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  font-weight: 900;
+}
+
+.vis-sequence .vis-item {
+  font-size: min(calc(10 * var(--u)), calc(58 * var(--u) / var(--n, 5)));
+}
+
+.vis-next {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.quiz-choices {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: calc(3 * var(--u));
+}
+
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(0.6 * var(--u));
+  min-height: max(96px, calc(22 * var(--u)));
+  padding: calc(1.5 * var(--u));
+  border-radius: 22px;
+  background: var(--card);
+  border: 4px solid var(--side);
+  box-shadow: 0 6px 0 var(--side-dark);
+  font-size: calc(13 * var(--u));
+  font-weight: 900;
+  line-height: 1.1;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    opacity 0.2s;
+}
+
+.choice:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--side-dark);
+}
+
+.quiz-choices.wordy .choice {
+  min-height: max(72px, calc(17 * var(--u)));
+  font-size: calc(6.5 * var(--u));
+}
+
+/* ตัวเลือกที่เป็นกลุ่มภาพ เรียงแถวละ 5 เหมือนโจทย์นับเลข */
+.choice-group {
+  display: grid;
+  grid-template-columns: repeat(var(--per-row, 5), auto);
+  justify-content: center;
+  align-content: center;
+  gap: calc(1 * var(--u));
+  min-height: max(72px, calc(17 * var(--u)));
+}
+
+.choice-group .vis-item {
+  font-size: calc(9.5 * var(--u));
+}
+
+.choice:disabled {
+  opacity: 0.3;
+  box-shadow: none;
+}
+
+.choice.wrong {
+  animation: shake 0.4s;
+}
+
+.choice.correct {
+  background: var(--go-soft);
+  border-color: var(--go);
+  box-shadow: 0 6px 0 var(--go-dark);
+  animation: pop 0.5s;
+}
+
+.choice.hint,
+.mcard.hint {
+  border-color: var(--go);
+  animation: wiggle 0.5s ease-in-out 4;
+}
+
+.quiz.locked .choice {
+  pointer-events: none;
+}
+
+/* แผงที่กว้างกว่าสูง (ท่านั่งตรงข้าม) ให้วางโจทย์กับตัวเลือกเคียงกัน */
+@container (min-aspect-ratio: 3 / 2) {
+  .quiz,
+  .memory {
+    --u: 1.3cqh;
+  }
+
+  .quiz {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .quiz-choices {
+    flex: 1 1 0;
+  }
+
+  .choice-group {
+    grid-template-columns: repeat(var(--per-row-wide, 9), auto);
+  }
+}
+
+/* ---------- เกมจับคู่ภาพ ---------- */
+
+.memory {
+  align-items: center;
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: calc(2 * var(--u));
+  width: 100%;
+  margin: auto;
+  aspect-ratio: var(--cols) / var(--rows);
+}
+
+.mcard {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  border: 4px solid transparent;
+  background: var(--side);
+  box-shadow: 0 5px 0 var(--side-dark);
+  font-size: calc(46 * var(--u) / var(--cols));
+  line-height: 1;
+  transition:
+    background 0.2s,
+    transform 0.08s;
+}
+
+@supports (width: 1cqmin) {
+  .memory-grid {
+    container-type: inline-size;
+    /* กว้างได้เท่าที่ความสูงของแผงยังพอสำหรับทุกแถว */
+    width: min(100%, calc((100cqh - 24cqmin) * var(--cols) / var(--rows)));
+  }
+
+  .mcard {
+    font-size: calc(58cqw / var(--cols));
+  }
+}
+
+@container (min-aspect-ratio: 3 / 2) {
+  .memory-grid {
+    grid-template-columns: repeat(var(--cols-wide), minmax(0, 1fr));
+    aspect-ratio: var(--cols-wide) / var(--rows-wide);
+    width: min(100%, calc(74cqh * var(--cols-wide) / var(--rows-wide)));
+  }
+
+  .mcard {
+    font-size: calc(58cqw / var(--cols-wide));
+  }
+}
+
+.mcard:active {
+  transform: translateY(3px);
+}
+
+.mcard-front,
+.mcard-back {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.15s,
+    transform 0.2s;
+}
+
+.mcard-back {
+  font-size: 0.7em;
+  filter: grayscale(1) brightness(4);
+  opacity: 0.85;
+}
+
+.mcard-front {
+  opacity: 0;
+  transform: scale(0.3);
+}
+
+.mcard.up {
+  background: var(--card);
+}
+
+.mcard.up .mcard-front {
+  opacity: 1;
+  transform: none;
+}
+
+.mcard.up .mcard-back {
+  opacity: 0;
+}
+
+.mcard.matched {
+  background: var(--go-soft);
+  box-shadow: 0 5px 0 var(--go-dark);
+}
+
+/* ---------- แถบกลาง ---------- */
+
+.hud {
+  flex: 0 0 104px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-pause {
+  flex: none;
+  width: 72px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.6rem;
+}
+
+.tracks {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.track {
+  width: 46px;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 0;
+  border-radius: 999px;
+  border: 4px solid var(--side);
+  background: var(--side-soft);
+}
+
+.slot {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.22;
+  transition:
+    opacity 0.3s,
+    filter 0.3s,
+    transform 0.3s;
+}
+
+.slot.on {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.25);
+}
+
+.rocket {
+  font-size: 3rem;
+  line-height: 1;
+  transform: rotate(-45deg);
+}
+
+.fuel {
+  flex: 1;
+  min-height: 0;
+  width: 60px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  padding: 7px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 4px solid var(--line);
+}
+
+.seg {
+  flex: 1;
+  border-radius: 7px;
+  background: #e6edf7;
+  transition: background 0.3s;
+}
+
+.seg.on {
+  background: linear-gradient(#ffd43b, #ff9f1c);
+}
+
+.fuel-label {
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.hands {
+  display: flex;
+  gap: 6px;
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.hand {
+  opacity: 0.18;
+  transition: opacity 0.2s;
+}
+
+.hand.on {
+  opacity: 1;
+  animation: pulse 0.6s ease-in-out infinite;
+}
+
+/* ---------- ท่านั่งตรงข้าม: ผู้ปกครองอยู่ด้านบนและกลับหัว ---------- */
+
+.play.seating-facing {
+  flex-direction: column-reverse;
+}
+
+.seating-facing .panel-parent {
+  transform: rotate(180deg);
+}
+
+.seating-facing .hud {
+  flex-basis: 76px;
+  flex-direction: row;
+}
+
+.seating-facing .tracks {
+  flex-direction: column-reverse;
+  align-self: stretch;
+  justify-content: center;
+  gap: 6px;
+}
+
+.seating-facing .track {
+  width: auto;
+  flex: 1;
+  flex-direction: row;
+  padding: 0 6px;
+}
+
+.seating-facing .slot {
+  font-size: 1.2rem;
+}
+
+.seating-facing .rocket {
+  order: 3;
+  transform: rotate(45deg);
+}
+
+.seating-facing .fuel {
+  width: auto;
+  height: 56px;
+  flex-direction: row;
+}
+
+/* ---------- ชั้นที่ซ้อนทับหน้าเล่น ---------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.overlay-title {
+  font-size: clamp(2rem, 6vmin, 3rem);
+  font-weight: 900;
+}
+
+.count-num {
+  font-size: clamp(8rem, 40vmin, 16rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--child-dark);
+  animation: countpop 0.7s ease-out;
+}
+
+.highfive,
+.finish-banner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  line-height: 1.1;
+  text-shadow: 0 4px 0 #fff;
+  transform: translate(-50%, -50%);
+}
+
+.highfive {
+  font-size: clamp(4rem, 16vmin, 7rem);
+  animation: cheer 1.2s ease-out forwards;
+}
+
+.highfive span {
+  font-size: 0.4em;
+  font-weight: 900;
+  color: var(--go-dark);
+}
+
+.finish-banner {
+  font-size: clamp(8rem, 40vmin, 14rem);
+  animation: cheer 1.8s ease-out forwards;
+}
+
+.rotate-hint {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  .play.seating-side .rotate-hint {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--sky-bottom);
+    font-size: 1.8rem;
+    font-weight: 900;
+  }
+}
+
+.rotate-icon {
+  font-size: 6rem;
+  animation: wiggle 1.2s ease-in-out infinite;
+}
+
+.burst span {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  font-size: 2.6rem;
+  animation: burst 0.85s ease-out forwards;
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti span {
+  position: absolute;
+  top: -12%;
+  animation: fall linear infinite;
+}
+
+/* ---------- หน้าผลลัพธ์ ---------- */
+
+.result .screen-main {
+  position: relative;
+  z-index: 9;
+}
+
+.result-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-stars {
+  font-size: clamp(3rem, 10vmin, 4.5rem);
+  line-height: 1.1;
+  letter-spacing: 0.1em;
+}
+
+.result-note {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.result-scores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+.score-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 12px 22px;
+  border-radius: var(--radius);
+  border: 5px solid var(--side);
+  background: var(--card);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.score-card b {
+  font-size: 1.9rem;
+  color: var(--side-dark);
+}
+
+.sticker-award {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 24px 8px 12px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.sticker-award-icon {
+  font-size: 3.4rem;
+  line-height: 1;
+  animation: pop 0.8s 0.3s both;
+}
+
+/* ---------- สมุดสติกเกอร์ ---------- */
+
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  width: min(100%, 780px);
+}
+
+.sticker {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: clamp(2rem, 8vmin, 4rem);
+}
+
+.sticker.locked {
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+@media (max-width: 560px) {
+  .sticker-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- หน้าตั้งค่า ---------- */
+
+.settings-list {
+  width: min(100%, 660px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.field-label {
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.field-note {
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.input {
+  min-height: 56px;
+  padding: 8px 16px;
+  border-radius: 14px;
+  border: 3px solid var(--line);
+  background: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--parent);
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seg-btn {
+  flex: 1 1 120px;
+  min-height: 56px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: #eef3fa;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.seg-btn.on {
+  background: var(--parent);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 4px solid var(--parent-dark);
+  outline-offset: 3px;
+}
+
+/* ---------- แอนิเมชัน ---------- */
+
+@keyframes float {
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes wiggle {
+  25% {
+    transform: rotate(-6deg) scale(1.06);
+  }
+  75% {
+    transform: rotate(6deg) scale(1.06);
+  }
+}
+
+@keyframes countpop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cheer {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -60%) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes burst {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-150px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes fall {
+  100% {
+    transform: translateY(125vh) rotate(360deg);
+  }
+}
+
+/* ปิดแอนิเมชันทั้งหมด ทุกอย่างจึงต้องมองเห็นและอยู่ถูกตำแหน่งได้โดยไม่พึ่ง keyframes */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
