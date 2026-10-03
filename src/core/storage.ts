@@ -19,6 +19,7 @@ export function defaultSave(): SaveData {
       sound: true,
       speech: true,
       seating: 'side',
+      swapped: false,
     },
     levels: { counting: 1, thai: 1, english: 1, pattern: 1, memory: 1 },
     stickers: [],

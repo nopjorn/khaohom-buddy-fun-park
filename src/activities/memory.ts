@@ -3,6 +3,7 @@ import { h, onTap } from '../core/dom';
 import { sample, shuffle } from '../core/rng';
 import { MEMORY_ITEMS } from '../data/items';
 import type { Activity, ActivityHost, Rng } from '../types';
+import { bindKeys } from './keyBinding';
 import { th } from './util';
 
 export const MEMORY_MAX_LEVEL = 3;
@@ -69,6 +70,8 @@ export function createMemory(level: number, rng: Rng): Activity {
   let host: ActivityHost | null = null;
   let root: HTMLElement | null = null;
   let cards: HTMLButtonElement[] = [];
+  let keys = new Map<string, number>();
+  let shownCols = cols;
   const timers: number[] = [];
   const later = (fn: () => void, ms: number) => {
     timers.push(window.setTimeout(fn, ms));
@@ -122,6 +125,10 @@ export function createMemory(level: number, rng: Rng): Activity {
       grid.style.setProperty('--rows-wide', '2');
       root = h('div', { class: 'memory' }, h('div', { class: 'quiz-text' }, 'จับคู่ภาพที่เหมือนกัน'), grid);
       el.append(root);
+      // จำนวนคอลัมน์จริงขึ้นกับรูปทรงของแผง (CSS เปลี่ยนเป็นสองแถวยาวเมื่อแผงกว้าง) จึงต้องวัดหลังวางลงจอ
+      const measured = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length;
+      if (measured > 1) shownCols = measured;
+      keys = bindKeys(host.keyHalf, cards, shownCols);
       host.speak(say);
     },
 
@@ -138,6 +145,15 @@ export function createMemory(level: number, rng: Rng): Activity {
 
     repeat() {
       host?.speak(say);
+    },
+
+    pressKey(code) {
+      const index = keys.get(code);
+      if (index !== undefined) tap(index);
+    },
+
+    rebindKeys(half) {
+      keys = bindKeys(half, cards, shownCols);
     },
 
     destroy() {

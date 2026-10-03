@@ -57,6 +57,11 @@ export function onHold(el: HTMLElement, ms: number, handler: () => void): void {
   }
 }
 
+/** ป้ายชื่อปุ่มคีย์บอร์ด แสดงเฉพาะเมื่อเล่นด้วยคีย์บอร์ด (ดู .use-keys ใน CSS) */
+export function keycap(label: string): HTMLElement {
+  return h('kbd', { class: 'keycap' }, label);
+}
+
 export function clear(el: HTMLElement): void {
   el.replaceChildren();
 }

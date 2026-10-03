@@ -2,7 +2,7 @@ import { ACTIVITIES } from '../activities';
 import { sfx } from '../core/audio';
 import { clear, h } from '../core/dom';
 import { pick } from '../core/rng';
-import type { Activity, ActivityId, Rng, SayPart, Side } from '../types';
+import type { Activity, ActivityId, KeyHalf, Rng, SayPart, Side } from '../types';
 import { type LevelState, recordAnswer } from './difficulty';
 
 export interface PanelOptions {
@@ -16,6 +16,8 @@ export interface PanelOptions {
   speak(parts: SayPart[]): void;
   /** เวลารอก่อนโจทย์ถัดไปจะขึ้น */
   delayMs(): number;
+  /** ครึ่งคีย์บอร์ดของฝั่งนี้ในตอนนี้ เปลี่ยนได้เมื่อผู้เล่นสลับฝั่ง */
+  keyHalf(): KeyHalf;
   onCorrect(): void;
   onLevelChange?(id: ActivityId, level: number): void;
   headExtra?: HTMLElement;
@@ -78,6 +80,15 @@ export class Panel {
     this.activity?.repeat();
   }
 
+  pressKey(code: string): void {
+    if (this.running) this.activity?.pressKey(code);
+  }
+
+  /** เรียกหลังผู้เล่นสลับฝั่ง เพื่อให้โจทย์ที่ค้างอยู่ใช้ปุ่มของฝั่งใหม่ */
+  rebindKeys(): void {
+    this.activity?.rebindKeys(this.opts.keyHalf());
+  }
+
   private pickActivity(): ActivityId {
     let pool = this.opts.activities;
     // โซนสุ่มรวมไม่ให้กิจกรรมเดิมซ้ำติดกัน ส่วนโซนที่มีสองกิจกรรมกันแค่เกมจับคู่ซึ่งใช้เวลานาน
@@ -116,6 +127,7 @@ export class Panel {
 
     activity.mount(this.body, {
       side: this.opts.side,
+      keyHalf: this.opts.keyHalf(),
       onCorrect: () => this.answered(id, true),
       onWrong: () => this.answered(id, false),
       onDone: () => this.nextRound(),

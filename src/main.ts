@@ -67,6 +67,9 @@ document.addEventListener(
   { passive: false },
 );
 
+// เครื่องที่ไม่มีจอสัมผัส (เช่น notebook) สองคนแตะพร้อมกันไม่ได้ จึงแสดงป้ายชื่อปุ่มคีย์บอร์ดให้ใช้แทน
+if (navigator.maxTouchPoints === 0) document.documentElement.classList.add('use-keys');
+
 initSpeech();
 applySettings();
 app.go({ name: 'home' });

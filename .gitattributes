@@ -1,0 +1,2 @@
+# ไฟล์ .cmd ต้องขึ้นบรรทัดใหม่แบบ Windows ไม่อย่างนั้น cmd.exe อาจอ่านผิด
+*.cmd text eol=crlf

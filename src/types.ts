@@ -5,6 +5,8 @@ export type ActivityId = 'counting' | 'thai' | 'english' | 'pattern' | 'memory';
 export type Handicap = 'low' | 'normal' | 'high';
 export type Seating = 'side' | 'facing';
 export type Lang = 'th-TH' | 'en-US';
+/** ครึ่งของคีย์บอร์ดที่ผู้เล่นใช้ ขึ้นกับว่าแผงของตัวเองอยู่ฝั่งไหนของจอ */
+export type KeyHalf = 'left' | 'right';
 
 /** ตัวสุ่มที่คืนค่าในช่วง [0, 1) */
 export type Rng = () => number;
@@ -35,6 +37,7 @@ export interface Question {
 
 export interface ActivityHost {
   side: Side;
+  keyHalf: KeyHalf;
   onCorrect(): void;
   onWrong(): void;
   /** จบรอบแล้ว ขอโจทย์ถัดไป */
@@ -50,6 +53,10 @@ export interface Activity {
   hint(): void;
   /** อ่านโจทย์ซ้ำ */
   repeat(): void;
+  /** รับปุ่มคีย์บอร์ด (event.code) ที่เป็นของฝั่งนี้ */
+  pressKey(code: string): void;
+  /** เปลี่ยนครึ่งคีย์บอร์ดที่ใช้ เมื่อผู้เล่นสลับฝั่งกลางเกม */
+  rebindKeys(half: KeyHalf): void;
   destroy(): void;
 }
 
@@ -67,4 +74,6 @@ export interface Settings {
   sound: boolean;
   speech: boolean;
   seating: Seating;
+  /** true เมื่อสลับให้ลูกไปอยู่ฝั่งขวา (หรือด้านบนในท่านั่งตรงข้าม) */
+  swapped: boolean;
 }

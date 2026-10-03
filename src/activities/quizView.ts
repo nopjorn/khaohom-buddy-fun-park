@@ -1,11 +1,14 @@
 import { h, onTap } from '../core/dom';
 import type { Activity, ActivityHost, Choice, Question, Visual } from '../types';
+import { bindKeys } from './keyBinding';
 
 const WRONG_LOCK_MS = 1000;
 const DONE_DELAY_MS = 900;
 const HINT_MS = 2000;
 
-const glyphCount = (text: string) => Array.from(text.replace(/️/g, '')).length;
+// ไม่นับตัวกำกับรูปแบบ emoji (U+FE0F) ซึ่งมองไม่เห็นแต่ทำให้ข้อความดูยาวขึ้น
+const VARIATION_SELECTOR = String.fromCharCode(0xfe0f);
+const glyphCount = (text: string) => Array.from(text.split(VARIATION_SELECTOR).join('')).length;
 
 function renderVisual(visual: Visual): HTMLElement {
   switch (visual.kind) {
@@ -32,9 +35,11 @@ function renderVisual(visual: Visual): HTMLElement {
       );
     }
     case 'sequence': {
+      // ลำดับตัวเลขต้องเว้นห่างกว่าภาพ ไม่อย่างนั้นตัวเลขจะดูติดกันเป็นจำนวนเดียว
+      const numeric = visual.items.every((item) => /^\d+$/.test(item));
       const row = h(
         'div',
-        { class: 'vis-sequence' },
+        { class: numeric ? 'vis-sequence numbers' : 'vis-sequence' },
         ...visual.items.map((item) => h('span', { class: 'vis-item' }, item)),
         h('span', { class: 'vis-item vis-next' }, '❓'),
       );
@@ -71,6 +76,8 @@ export function createQuiz(question: Question): Activity {
   let host: ActivityHost | null = null;
   let root: HTMLElement | null = null;
   let buttons: HTMLButtonElement[] = [];
+  let keys = new Map<string, number>();
+  const cols = columnsFor(question.choices);
   let locked = false;
   let done = false;
   const timers: number[] = [];
@@ -115,8 +122,9 @@ export function createQuiz(question: Question): Activity {
         onTap(btn, () => choose(i));
         return btn;
       });
+      keys = bindKeys(host.keyHalf, buttons, cols);
       const choices = h('div', { class: isWordy(question.choices) ? 'quiz-choices wordy' : 'quiz-choices' }, ...buttons);
-      choices.style.setProperty('--cols', String(columnsFor(question.choices)));
+      choices.style.setProperty('--cols', String(cols));
       root = h(
         'div',
         { class: 'quiz' },
@@ -141,6 +149,15 @@ export function createQuiz(question: Question): Activity {
 
     repeat() {
       host?.speak(question.say);
+    },
+
+    pressKey(code) {
+      const index = keys.get(code);
+      if (index !== undefined) choose(index);
+    },
+
+    rebindKeys(half) {
+      keys = bindKeys(half, buttons, cols);
     },
 
     destroy() {

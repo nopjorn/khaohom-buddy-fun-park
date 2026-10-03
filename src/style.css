@@ -234,6 +234,13 @@ p {
   gap: 14px;
 }
 
+.version {
+  flex: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 /* ---------- การ์ดเลือกโซนและโหมด ---------- */
 
 .cards {
@@ -522,6 +529,10 @@ p {
   font-size: min(calc(10 * var(--u)), calc(58 * var(--u) / var(--n, 5)));
 }
 
+.vis-sequence.numbers {
+  gap: calc(4.5 * var(--u));
+}
+
 .vis-next {
   animation: pulse 1s ease-in-out infinite;
 }
@@ -720,6 +731,60 @@ p {
   box-shadow: 0 5px 0 var(--go-dark);
 }
 
+/* ---------- ป้ายชื่อปุ่มคีย์บอร์ด (เครื่องที่ไม่มีจอสัมผัส) ---------- */
+
+.keycap,
+.key-hint {
+  display: none;
+}
+
+.use-keys .keycap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0 0.35em;
+  border-radius: 0.4em;
+  background: var(--ink);
+  color: #fff;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: clamp(13px, calc(3.6 * var(--u, 4px)), 22px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.choice,
+.mcard {
+  position: relative;
+}
+
+.choice > .keycap,
+.mcard > .keycap {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+
+.use-keys .mcard.matched > .keycap {
+  display: none;
+}
+
+.head-btn > .keycap,
+.hud-btn > .keycap {
+  margin-left: 6px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.use-keys .key-hint {
+  display: block;
+  padding: 0 20px;
+  font-size: clamp(1.1rem, 3vmin, 1.5rem);
+  font-weight: 800;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 /* ---------- แถบกลาง ---------- */
 
 .hud {
@@ -731,14 +796,20 @@ p {
   gap: 10px;
 }
 
-.hud-pause {
+.hud-btn {
   flex: none;
-  width: 72px;
-  height: 56px;
+  min-width: 72px;
+  padding: 0 8px;
+  height: 52px;
   border-radius: 18px;
   background: var(--card);
   box-shadow: var(--shadow);
   font-size: 1.6rem;
+}
+
+.hud-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(43, 45, 66, 0.14);
 }
 
 .tracks {
@@ -871,6 +942,35 @@ p {
   width: auto;
   height: 56px;
   flex-direction: row;
+}
+
+/* ---------- สลับฝั่ง: ลูกไปอยู่ขวา หรืออยู่ด้านบนในท่านั่งตรงข้าม ---------- */
+
+.play.swapped {
+  flex-direction: row-reverse;
+}
+
+/* แถบดาวและมือไฮไฟว์ย้ายตาม ให้อยู่ติดกับแผงของเจ้าของเสมอ */
+.swapped .tracks,
+.swapped .hands {
+  flex-direction: row-reverse;
+}
+
+.play.seating-facing.swapped {
+  flex-direction: column;
+}
+
+.seating-facing.swapped .tracks {
+  flex-direction: column;
+}
+
+/* แผงที่อยู่ด้านบนคือแผงที่ต้องกลับหัว */
+.seating-facing.swapped .panel-parent {
+  transform: none;
+}
+
+.seating-facing.swapped .panel-child {
+  transform: rotate(180deg);
 }
 
 /* ---------- ชั้นที่ซ้อนทับหน้าเล่น ---------- */

@@ -1,5 +1,6 @@
 import type { App, ScreenView } from '../app';
 import { h, onHold } from '../core/dom';
+import { versionLabel } from '../core/version';
 import { STICKERS } from '../data/items';
 import { button } from './ui';
 
@@ -31,6 +32,8 @@ export function homeScreen(app: App): ScreenView {
       h('p', { class: 'subtitle' }, 'เกมสองคน เล่นพร้อมกันทั้งลูกและพ่อแม่'),
       play,
       h('div', { class: 'home-row' }, stickers, settings),
+      // ให้เห็นว่าเกมที่เปิดอยู่เป็นรุ่นล่าสุดหลัง deploy หรือยัง
+      h('div', { class: 'version' }, versionLabel()),
     ),
   );
   return { el };

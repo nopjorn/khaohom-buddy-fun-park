@@ -1,14 +1,15 @@
 import { ACTIVITY_IDS, zoneById } from '../activities';
 import { type App, CHILD_AVATAR, PARENT_AVATAR, type ScreenView } from '../app';
 import { sfx } from '../core/audio';
-import { h, onTap } from '../core/dom';
+import { h, keycap, onTap } from '../core/dom';
+import { halfOfKey } from '../core/keys';
 import { mulberry32, randInt } from '../core/rng';
 import { speak, stopSpeech } from '../core/speech';
 import { type LevelState, newLevelState, parentDelayMs } from '../engine/difficulty';
 import { HIGHFIVE_WINDOW_MS, type MatchState, applyCorrect, createMatch } from '../engine/match';
 import { Panel } from '../engine/panel';
 import { awardSticker } from '../engine/stickers';
-import type { ActivityId, Mode, Side, ZoneId } from '../types';
+import type { ActivityId, KeyHalf, Mode, Seating, Side, ZoneId } from '../types';
 import { button, confetti } from './ui';
 
 const COUNTDOWN_STEP_MS = 800;
@@ -23,10 +24,17 @@ interface Hud {
   setWaiting(side: Side | null): void;
 }
 
-function buildHud(mode: Mode, target: number, onPause: () => void): Hud {
-  const pause = h('button', { class: 'hud-pause', type: 'button', 'aria-label': 'พักเกม' }, '⏸');
+function buildHud(mode: Mode, target: number, seating: Seating, onPause: () => void, onSwap: () => void): Hud {
+  const pause = h('button', { class: 'hud-btn', type: 'button', 'aria-label': 'พักเกม' }, '⏸', keycap('Esc'));
   onTap(pause, onPause);
-  const el = h('div', { class: `hud hud-${mode}` }, pause);
+  // นั่งข้างกันคือสลับซ้ายขวา นั่งตรงข้ามคือสลับบนล่าง
+  const swap = h(
+    'button',
+    { class: 'hud-btn', type: 'button', 'aria-label': seating === 'side' ? 'สลับซ้ายขวา' : 'สลับบนล่าง' },
+    seating === 'side' ? '↔️' : '↕️',
+  );
+  onTap(swap, onSwap);
+  const el = h('div', { class: `hud hud-${mode}` }, pause, swap);
 
   if (mode === 'versus') {
     const tracks = SIDES.map((side) => {
@@ -82,37 +90,46 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   };
 
   // เวลาที่พักเกมไม่นับรวมในเวลาเล่น
-  let pausedAt = 0;
   let pausedMs = 0;
   const clock = () => performance.now() - pausedMs;
 
   let match = createMatch(mode, 0);
+  let started = false;
   let finished = false;
+  let resume: (() => void) | null = null;
   let waitingToken = 0;
 
   const levels = Object.fromEntries(
     ACTIVITY_IDS.map((id) => [id, newLevelState(app.save.levels[id])]),
   ) as Record<ActivityId, LevelState>;
 
-  const el = h('div', { class: `play seating-${settings.seating} mode-${mode}` });
-  const hud = buildHud(mode, match.target, openPause);
+  // ปกติลูกอยู่ซ้าย (หรือล่างในท่านั่งตรงข้าม) สลับได้ระหว่างเล่นและจำไว้ใช้ครั้งต่อไป
+  let swapped = settings.swapped;
+  const keyHalfOf = (side: Side): KeyHalf => ((side === 'child') !== swapped ? 'left' : 'right');
 
-  const listen = h('button', { class: 'head-btn', type: 'button', 'aria-label': 'ฟังโจทย์อีกครั้ง' }, '🔊');
+  const el = h('div', { class: `play seating-${settings.seating} mode-${mode}` });
+  el.classList.toggle('swapped', swapped);
+  const hud = buildHud(mode, match.target, settings.seating, openPause, swapSides);
+
+  const listen = h(
+    'button',
+    { class: 'head-btn', type: 'button', 'aria-label': 'ฟังโจทย์อีกครั้ง' },
+    '🔊',
+    keycap('Space'),
+  );
   onTap(listen, () => child.repeat());
 
   // ปุ่มให้คำใบ้มีเฉพาะโหมดช่วยกัน เพราะในโหมดแข่งผู้ปกครองเป็นคู่แข่ง
-  let help: HTMLButtonElement | undefined;
-  if (mode === 'coop') {
-    const helpBtn = h('button', { class: 'head-btn', type: 'button' }, '💡 ช่วยลูก');
-    onTap(helpBtn, () => {
-      if (helpBtn.disabled || finished) return;
-      sfx.tap();
-      child.hint();
-      helpBtn.disabled = true;
-      later(() => (helpBtn.disabled = false), HINT_COOLDOWN_MS);
-    });
-    help = helpBtn;
+  const help =
+    mode === 'coop' ? h('button', { class: 'head-btn', type: 'button' }, '💡 ช่วยลูก', keycap('Enter')) : undefined;
+  function giveHint(): void {
+    if (!help || help.disabled || finished) return;
+    sfx.tap();
+    child.hint();
+    help.disabled = true;
+    later(() => (help.disabled = false), HINT_COOLDOWN_MS);
   }
+  if (help) onTap(help, giveHint);
 
   const child = new Panel({
     side: 'child',
@@ -123,6 +140,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     levels,
     speak,
     delayMs: () => 0,
+    keyHalf: () => keyHalfOf('child'),
     onCorrect: () => correct('child'),
     onLevelChange: (id, level) => {
       app.save.levels[id] = level;
@@ -141,6 +159,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     // ฝั่งผู้ปกครองไม่อ่านออกเสียง เสียงจะได้ไม่ชนกับโจทย์ของลูก
     speak: () => {},
     delayMs: () => parentDelayMs(settings.handicap, mode, match.score.parent - match.score.child),
+    keyHalf: () => keyHalfOf('parent'),
     onCorrect: () => correct('parent'),
     headExtra: help,
   });
@@ -185,22 +204,58 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     later(() => app.go({ name: 'result', zone, mode, match, award }), RESULT_DELAY_MS);
   }
 
+  function swapSides(): void {
+    if (finished) return;
+    sfx.tap();
+    swapped = !swapped;
+    settings.swapped = swapped;
+    app.persist();
+    el.classList.toggle('swapped', swapped);
+    child.rebindKeys();
+    parent.rebindKeys();
+  }
+
   function openPause(): void {
-    if (finished || pausedAt) return;
-    pausedAt = performance.now();
+    if (!started || finished || resume) return;
+    const pausedAt = performance.now();
     stopSpeech();
     const overlay = h(
       'div',
       { class: 'overlay' },
       h('div', { class: 'overlay-title' }, '⏸ พักก่อนนะ'),
-      button('btn btn-go btn-xl', '▶ เล่นต่อ', () => {
-        pausedMs += performance.now() - pausedAt;
-        pausedAt = 0;
-        overlay.remove();
-      }),
+      button('btn btn-go btn-xl', '▶ เล่นต่อ', () => resume?.()),
       button('btn', '🏠 ออกจากเกม', () => app.go({ name: 'home' })),
     );
+    resume = () => {
+      pausedMs += performance.now() - pausedAt;
+      resume = null;
+      overlay.remove();
+    };
     el.append(overlay);
+  }
+
+  // เล่นด้วยคีย์บอร์ดบนเครื่องที่ไม่มีจอสัมผัส แผงฝั่งซ้ายใช้ปุ่มครึ่งซ้าย แผงฝั่งขวาใช้ครึ่งขวา กดพร้อมกันได้
+  function onKeyDown(e: KeyboardEvent): void {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === 'Escape') {
+      if (resume) resume();
+      else openPause();
+      return;
+    }
+    if (!started || finished || resume) return;
+
+    if (e.code === 'Space') {
+      child.repeat();
+    } else if (e.code === 'Enter' && help) {
+      giveHint();
+    } else {
+      const half = halfOfKey(e.code);
+      if (!half) return;
+      (half === keyHalfOf('child') ? child : parent).pressKey(e.code);
+    }
+    e.preventDefault();
+    // เครื่องที่มีทั้งจอสัมผัสและคีย์บอร์ด จะเริ่มแสดงป้ายชื่อปุ่มเมื่อมีการกดคีย์บอร์ดครั้งแรก
+    document.documentElement.classList.add('use-keys');
   }
 
   function countdown(overlay: HTMLElement, n: number): void {
@@ -210,12 +265,16 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
       later(() => {
         overlay.remove();
         match = createMatch(mode, clock());
+        started = true;
         child.start();
         parent.start();
       }, COUNTDOWN_STEP_MS);
       return;
     }
-    overlay.replaceChildren(h('span', { class: 'count-num' }, String(n)));
+    overlay.replaceChildren(
+      h('span', { class: 'count-num' }, String(n)),
+      h('span', { class: 'key-hint' }, 'กดปุ่มบนคีย์บอร์ดตามตัวอักษรที่มุมของแต่ละช่อง'),
+    );
     sfx.tick();
     later(() => countdown(overlay, n - 1), COUNTDOWN_STEP_MS);
   }
@@ -228,11 +287,13 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     startOverlay,
     h('div', { class: 'rotate-hint' }, h('div', { class: 'rotate-icon' }, '🔄'), 'หมุนจอเป็นแนวนอนนะ'),
   );
+  window.addEventListener('keydown', onKeyDown);
   countdown(startOverlay, 3);
 
   return {
     el,
     destroy() {
+      window.removeEventListener('keydown', onKeyDown);
       timers.forEach((id) => window.clearTimeout(id));
       timers.clear();
       child.destroy();
