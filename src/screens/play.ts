@@ -1,21 +1,35 @@
-import { ACTIVITY_IDS, zoneById } from '../activities';
+import { ACTIVITIES, ACTIVITY_IDS, zoneById } from '../activities';
+import { createTalkPair } from '../activities/quizView';
 import { type App, CHILD_AVATAR, PARENT_AVATAR, type ScreenView } from '../app';
 import { sfx } from '../core/audio';
 import { h, keycap, onTap } from '../core/dom';
 import { halfOfKey } from '../core/keys';
-import { mulberry32, randInt } from '../core/rng';
+import { mulberry32, pick, randInt } from '../core/rng';
 import { speak, stopSpeech } from '../core/speech';
-import { type LevelState, newLevelState, parentDelayMs } from '../engine/difficulty';
-import { HIGHFIVE_WINDOW_MS, type MatchState, applyCorrect, createMatch } from '../engine/match';
-import { Panel } from '../engine/panel';
+import { type LevelState, newLevelState, parentDelayMs, recordAnswer } from '../engine/difficulty';
+import { recordResult, weightOf } from '../engine/mastery';
+import {
+  HIGHFIVE_WINDOW_MS,
+  type MatchState,
+  applyCorrect,
+  applyWrong,
+  createMatch,
+  otherSide,
+} from '../engine/match';
+import { type AnswerResult, Panel } from '../engine/panel';
+import { praiseFor } from '../engine/praise';
 import { awardSticker } from '../engine/stickers';
-import type { ActivityId, KeyHalf, Mode, Seating, Side, ZoneId } from '../types';
+import type { ActivityId, ItemWeight, KeyHalf, Mode, SayPart, Seating, Side, ZoneId } from '../types';
 import { button, confetti } from './ui';
 
 const COUNTDOWN_STEP_MS = 800;
 const HINT_COOLDOWN_MS = 4000;
 const RESULT_DELAY_MS = 1800;
+/** เวลาโดยประมาณที่คำชมหนึ่งประโยคใช้พูด ระหว่างนี้โจทย์ถัดไปจะรอพูดต่อท้ายแทนการตัดเสียง */
+const PRAISE_SPEECH_MS = 2500;
 const SIDES: Side[] = ['child', 'parent'];
+
+const th = (text: string): SayPart => ({ text, lang: 'th-TH' });
 
 interface Hud {
   el: HTMLElement;
@@ -55,13 +69,10 @@ function buildHud(mode: Mode, target: number, seating: Seating, onPause: () => v
 
   const segments = Array.from({ length: target }, () => h('span', { class: 'seg' }));
   const label = h('div', { class: 'fuel-label' }, `0/${target}`);
-  const hands = SIDES.map((side) => ({ side, el: h('span', { class: `hand hand-${side}` }, '✋') }));
-  el.append(
-    h('div', { class: 'rocket' }, '🚀'),
-    h('div', { class: 'fuel' }, ...segments),
-    label,
-    h('div', { class: 'hands' }, ...hands.map((hand) => hand.el)),
-  );
+  // มือไฮไฟว์มีเฉพาะโหมดช่วยกัน
+  const hands = mode === 'coop' ? SIDES.map((side) => ({ side, el: h('span', { class: `hand hand-${side}` }, '✋') })) : [];
+  el.append(h('div', { class: 'rocket' }, '🚀'), h('div', { class: 'fuel' }, ...segments), label);
+  if (hands.length > 0) el.append(h('div', { class: 'hands' }, ...hands.map((hand) => hand.el)));
   return {
     el,
     render(state) {
@@ -77,6 +88,7 @@ function buildHud(mode: Mode, target: number, seating: Seating, onPause: () => v
 export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   const { settings } = app.save;
   const zoneDef = zoneById(zone);
+  const talk = mode === 'talk';
   const rng = mulberry32((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
   const panelRng = () => mulberry32(randInt(rng, 0, 0xffffffff));
 
@@ -98,10 +110,14 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   let finished = false;
   let resume: (() => void) | null = null;
   let waitingToken = 0;
+  let praiseUntil = 0;
 
   const levels = Object.fromEntries(
     ACTIVITY_IDS.map((id) => [id, newLevelState(app.save.levels[id])]),
   ) as Record<ActivityId, LevelState>;
+
+  // ข้อที่ลูกตอบผิดบ่อยจะถูกสุ่มถี่ขึ้น
+  const weight: ItemWeight = (itemId) => weightOf(app.save.stats[itemId]);
 
   // ปกติลูกอยู่ซ้าย (หรือล่างในท่านั่งตรงข้าม) สลับได้ระหว่างเล่นและจำไว้ใช้ครั้งต่อไป
   let swapped = settings.swapped;
@@ -119,7 +135,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   );
   onTap(listen, () => child.repeat());
 
-  // ปุ่มให้คำใบ้มีเฉพาะโหมดช่วยกัน เพราะในโหมดแข่งผู้ปกครองเป็นคู่แข่ง
+  // ปุ่มให้คำใบ้มีเฉพาะโหมดช่วยกัน ในโหมดแข่งผู้ปกครองเป็นคู่แข่ง ส่วนโหมดคุยกันทั้งคู่เห็นโจทย์ข้อเดียวกันอยู่แล้ว
   const help =
     mode === 'coop' ? h('button', { class: 'head-btn', type: 'button' }, '💡 ช่วยลูก', keycap('Enter')) : undefined;
   function giveHint(): void {
@@ -131,21 +147,38 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   }
   if (help) onTap(help, giveHint);
 
+  function saveLevel(id: ActivityId, level: number): void {
+    app.save.levels[id] = level;
+    app.persist();
+  }
+
+  function recordChildItem(result: AnswerResult): void {
+    if (!result.item) return;
+    app.save.stats = recordResult(app.save.stats, result.item, result.missed);
+    app.persist();
+  }
+
   const child = new Panel({
     side: 'child',
     name: settings.childName,
     avatar: CHILD_AVATAR,
     activities: zoneDef.activities,
     rng: panelRng(),
-    levels,
-    speak,
+    levels: talk ? null : levels,
+    // ถ้าคำชมยังพูดไม่จบ ให้โจทย์ถัดไปพูดต่อท้ายแทนการตัดเสียงคำชม
+    speak: (parts) => speak(parts, performance.now() < praiseUntil),
     delayMs: () => 0,
     keyHalf: () => keyHalfOf('child'),
-    onCorrect: () => correct('child'),
-    onLevelChange: (id, level) => {
-      app.save.levels[id] = level;
-      app.persist();
+    onCorrect: (streak) => correct('child', streak),
+    onWrong: () => wrong(),
+    onAnswered: (result) => {
+      recordChildItem(result);
+      if (talk) talkAnswered(result.missed);
     },
+    onLevelChange: saveLevel,
+    weight,
+    manual: talk,
+    onRoundDone: nextTalkRound,
     headExtra: listen,
   });
 
@@ -158,13 +191,73 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     levels: null,
     // ฝั่งผู้ปกครองไม่อ่านออกเสียง เสียงจะได้ไม่ชนกับโจทย์ของลูก
     speak: () => {},
-    delayMs: () => parentDelayMs(settings.handicap, mode, match.score.parent - match.score.child),
+    delayMs: () => (talk ? 0 : parentDelayMs(settings.handicap, mode, match.score.parent - match.score.child)),
     keyHalf: () => keyHalfOf('parent'),
-    onCorrect: () => correct('parent'),
+    onCorrect: (streak) => correct('parent', streak),
+    onWrong: () => wrong(),
+    onAnswered: (result) => {
+      if (talk) talkAnswered(result.missed);
+    },
+    manual: talk,
+    onRoundDone: nextTalkRound,
     headExtra: help,
   });
 
-  function correct(side: Side): void {
+  const panels: Record<Side, Panel> = { child, parent };
+  const names: Record<Side, string> = { child: settings.childName, parent: settings.parentName };
+
+  // ---------- โหมดคุยกัน: โจทย์ทีละข้อ คนหนึ่งเห็นโจทย์ อีกคนเห็นตัวเลือก สลับบทกันทุกข้อ ----------
+
+  const talkActivities = zoneDef.activities.filter((id) => ACTIVITIES[id].generate);
+  let talkRound = 0;
+  let talkId: ActivityId = talkActivities[0];
+  let talkKey = '';
+  // อธิบายบทบาทด้วยเสียงแค่ครั้งแรกของแต่ละบท ครั้งต่อไปปล่อยเงียบเพราะสองคนกำลังคุยกันอยู่
+  const explained: Record<'ask' | 'answer', boolean> = { ask: false, answer: false };
+
+  function nextTalkRound(): void {
+    if (finished) return;
+    const asker: Side = talkRound % 2 === 0 ? 'child' : 'parent';
+    const answerer = otherSide(asker);
+    talkRound += 1;
+
+    const pool = talkActivities.length > 2 ? talkActivities.filter((id) => id !== talkId) : talkActivities;
+    talkId = pick(rng, pool);
+    const def = ACTIVITIES[talkId];
+    const level = Math.min(levels[talkId].level, def.maxLevel);
+    // บทของลูกในข้อนี้ เสียงอธิบายออกเฉพาะแผงของลูก
+    const childRole = asker === 'child' ? 'ask' : 'answer';
+    const generate = () =>
+      createTalkPair(def.generate!(level, rng, weight), {
+        askNote: `ดูแล้วบอก${names[answerer]}`,
+        answerNote: `ฟัง${names[asker]}บอก แล้วกดคำตอบ`,
+        askSay: [th(`${names.child} ดูแล้วบอก${names.parent}หน่อยนะ`)],
+        answerSay: [th(`ฟัง${names.parent}บอก แล้วกดคำตอบนะ`)],
+        announce: !explained[childRole],
+      });
+    let pair = generate();
+    for (let i = 0; i < 4 && pair.asker.key === talkKey; i++) pair = generate();
+    talkKey = pair.asker.key;
+    explained[childRole] = true;
+
+    panels[asker].present(pair.asker);
+    panels[answerer].present(pair.answerer);
+  }
+
+  /** โหมดคุยกันปรับระดับจากทุกข้อ ไม่ว่าใครเป็นคนกด เพราะทั้งคู่ใช้โจทย์ระดับของลูก */
+  function talkAnswered(missed: boolean): void {
+    const before = levels[talkId].level;
+    levels[talkId] = recordAnswer(levels[talkId], !missed, ACTIVITIES[talkId].maxLevel);
+    if (levels[talkId].level !== before) saveLevel(talkId, levels[talkId].level);
+  }
+
+  // ---------- ผลการตอบ ----------
+
+  function wrong(): void {
+    match = applyWrong(match);
+  }
+
+  function correct(side: Side, streak: number): void {
     if (finished) return;
     const result = applyCorrect(match, side, clock());
     match = result.state;
@@ -184,7 +277,20 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
         if (token === waitingToken) hud.setWaiting(null);
       }, HIGHFIVE_WINDOW_MS);
     }
-    if (match.winner) finish();
+    if (match.winner) {
+      finish();
+      return;
+    }
+    if (side === 'child') praise(streak);
+  }
+
+  /** ชมลูกด้วยชื่อเมื่อตอบถูกติดกันถึงจังหวะ */
+  function praise(streak: number): void {
+    const text = praiseFor(streak, settings.childName, rng);
+    if (!text) return;
+    child.cheer(`${text} 🎉`);
+    speak([th(text)]);
+    praiseUntil = performance.now() + PRAISE_SPEECH_MS;
   }
 
   function finish(): void {
@@ -200,7 +306,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     app.save.plays += 1;
     app.persist();
 
-    el.append(confetti(), h('div', { class: 'finish-banner' }, mode === 'coop' ? '🚀' : '🏆'));
+    el.append(confetti(), h('div', { class: 'finish-banner' }, mode === 'versus' ? '🏆' : '🚀'));
     later(() => app.go({ name: 'result', zone, mode, match, award }), RESULT_DELAY_MS);
   }
 
@@ -268,6 +374,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
         started = true;
         child.start();
         parent.start();
+        if (talk) nextTalkRound();
       }, COUNTDOWN_STEP_MS);
       return;
     }

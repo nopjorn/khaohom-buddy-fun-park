@@ -1,5 +1,6 @@
 export type Side = 'child' | 'parent';
-export type Mode = 'coop' | 'versus';
+/** coop = ต่างคนต่างตอบแล้วรวมคะแนน, talk = คนหนึ่งเห็นโจทย์อีกคนกดคำตอบ, versus = แข่งกัน */
+export type Mode = 'coop' | 'talk' | 'versus';
 export type ZoneId = 'numbers' | 'thai' | 'english' | 'brain' | 'mix';
 export type ActivityId = 'counting' | 'thai' | 'english' | 'pattern' | 'memory';
 export type Handicap = 'low' | 'normal' | 'high';
@@ -10,6 +11,12 @@ export type KeyHalf = 'left' | 'right';
 
 /** ตัวสุ่มที่คืนค่าในช่วง [0, 1) */
 export type Rng = () => number;
+
+/**
+ * น้ำหนักในการสุ่มของสิ่งที่ฝึก (เช่น "thai:ก") ค่ามากคือสุ่มเจอบ่อย
+ * ใช้ทวนข้อที่ลูกตอบผิดบ่อย
+ */
+export type ItemWeight = (itemId: string) => number;
 
 export interface SayPart {
   text: string;
@@ -33,6 +40,8 @@ export interface Question {
   choices: Choice[];
   /** ตำแหน่งของคำตอบที่ถูกใน choices */
   answer: number;
+  /** สิ่งที่โจทย์นี้ฝึก เช่น "thai:ก" ใช้เก็บสถิติของลูก โจทย์ของผู้ปกครองไม่มี */
+  item?: string;
 }
 
 export interface ActivityHost {
@@ -48,6 +57,8 @@ export interface ActivityHost {
 export interface Activity {
   /** ใช้กันไม่ให้ได้โจทย์เดิมซ้ำติดกัน */
   key: string;
+  /** สิ่งที่โจทย์นี้ฝึก (ดู Question.item) */
+  item?: string;
   mount(el: HTMLElement, host: ActivityHost): void;
   /** ทำให้คำตอบที่ถูกขยับเป็นคำใบ้ */
   hint(): void;
@@ -64,7 +75,9 @@ export interface ActivityDef {
   id: ActivityId;
   /** ระดับของลูกคือ 1..maxLevel ส่วน maxLevel + 1 เป็นระดับของผู้ปกครอง */
   maxLevel: number;
-  create(level: number, rng: Rng): Activity;
+  create(level: number, rng: Rng, weight?: ItemWeight): Activity;
+  /** มีเฉพาะกิจกรรมแบบเลือกตอบ โหมดคุยกันใช้แยกโจทย์กับตัวเลือกไว้คนละฝั่ง */
+  generate?(level: number, rng: Rng, weight?: ItemWeight): Question;
 }
 
 export interface Settings {

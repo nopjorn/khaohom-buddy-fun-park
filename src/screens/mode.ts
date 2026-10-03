@@ -14,6 +14,13 @@ const MODES: { id: Mode; icon: string; name: string; hint: string; color: string
     color: '#2dc653',
   },
   {
+    id: 'talk',
+    icon: '💬',
+    name: 'คุยกัน',
+    hint: 'คนหนึ่งเห็นโจทย์ อีกคนกดคำตอบ',
+    color: '#9b5de5',
+  },
+  {
     id: 'versus',
     icon: '🏁',
     name: 'แข่งกัน',

@@ -50,11 +50,17 @@ export function voiceStatus(lang: Lang): VoiceStatus {
   return voiceFor(lang) ? 'ready' : 'missing';
 }
 
-export function speak(parts: SayPart[]): void {
+/**
+ * พูดข้อความ โดยปกติจะตัดเสียงที่กำลังพูดอยู่ทิ้ง
+ * ถ้า append เป็น true จะรอให้เสียงเดิมพูดจบก่อน ใช้เมื่อไม่อยากให้โจทย์ถัดไปตัดคำชม
+ */
+export function speak(parts: SayPart[], append = false): void {
   if (!enabled || !supported()) return;
   const synth = window.speechSynthesis;
-  synth.cancel();
-  active = [];
+  if (!append) {
+    synth.cancel();
+    active = [];
+  }
   for (const part of parts) {
     const voice = voiceFor(part.lang);
     // ถ้ารู้แน่ว่าไม่มีเสียงภาษานั้นให้ข้ามไป ดีกว่าให้เสียงภาษาอื่นอ่านผิด ๆ

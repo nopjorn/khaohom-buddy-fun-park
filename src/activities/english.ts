@@ -1,7 +1,7 @@
-import { pick, randInt, shuffle } from '../core/rng';
+import { pick, randInt, shuffle, weightedPick } from '../core/rng';
 import { ENGLISH_EASY_COUNT, ENGLISH_WORDS } from '../data/english';
-import type { Question, Rng } from '../types';
-import { emojiChoice, en, textChoice, th, withDistractors } from './util';
+import type { ItemWeight, Question, Rng } from '../types';
+import { emojiChoice, en, evenWeight, textChoice, th, withDistractors } from './util';
 
 export const ENGLISH_MAX_LEVEL = 4;
 
@@ -52,9 +52,10 @@ export function misspellings(word: string, n: number, rng: Rng): string[] {
  * ระดับ 3 ตัวพิมพ์ใหญ่ → ตัวพิมพ์เล็ก, ระดับ 4 ภาพ → ตัวอักษรขึ้นต้น
  * ระดับที่สูงกว่านั้นเป็นโจทย์เลือกคำที่สะกดถูกของผู้ปกครอง
  */
-export function generateEnglish(level: number, rng: Rng): Question {
+export function generateEnglish(level: number, rng: Rng, weight: ItemWeight = evenWeight): Question {
   const pool = level <= 1 ? ENGLISH_WORDS.slice(0, ENGLISH_EASY_COUNT) : ENGLISH_WORDS;
-  const target = pick(rng, pool);
+  const target = weightedPick(rng, pool, (w) => weight(`english:${w.letter}`));
+  const item = `english:${target.letter}`;
 
   if (level <= 1) {
     const { options, answer } = withDistractors(rng, target, pool, 3);
@@ -64,6 +65,7 @@ export function generateEnglish(level: number, rng: Rng): Question {
       say: [th('อันไหนคือ'), en(target.word)],
       choices: options.map((o) => emojiChoice(o.emoji)),
       answer,
+      item,
     };
   }
 
@@ -79,6 +81,7 @@ export function generateEnglish(level: number, rng: Rng): Question {
       say: [en(target.letter), en(target.word), th('อยู่ไหนนะ')],
       choices: options.map((o) => emojiChoice(o.emoji)),
       answer,
+      item,
     };
   }
 
@@ -90,6 +93,7 @@ export function generateEnglish(level: number, rng: Rng): Question {
       say: [th('ตัวเล็กของ'), en(target.letter), th('คือตัวไหนนะ')],
       choices: options.map((o) => textChoice(o.letter.toLowerCase())),
       answer,
+      item,
     };
   }
 
@@ -101,6 +105,7 @@ export function generateEnglish(level: number, rng: Rng): Question {
       say: [en(target.word), th('ขึ้นต้นด้วยตัวอะไรนะ')],
       choices: options.map((o) => textChoice(o.letter)),
       answer,
+      item,
     };
   }
 

@@ -1,7 +1,7 @@
-import { pick, randInt, sample } from '../core/rng';
+import { pick, randInt, sample, weightedPick } from '../core/rng';
 import { COUNT_ITEMS } from '../data/items';
-import type { Question, Rng } from '../types';
-import { groupChoice, numberChoices, textChoice, th } from './util';
+import type { ItemWeight, Question, Rng } from '../types';
+import { evenWeight, groupChoice, numberChoices, textChoice, th } from './util';
 
 export const COUNTING_MAX_LEVEL = 4;
 
@@ -9,12 +9,14 @@ export const COUNTING_MAX_LEVEL = 4;
  * ระดับ 1 นับ 1-5, ระดับ 2 นับถึง 10, ระดับ 3 เทียบมากน้อย, ระดับ 4 บวกด้วยภาพ
  * ระดับที่สูงกว่านั้นเป็นโจทย์บวกลบไม่เกิน 20 ของผู้ปกครอง
  */
-export function generateCounting(level: number, rng: Rng): Question {
+export function generateCounting(level: number, rng: Rng, weight: ItemWeight = evenWeight): Question {
   const emoji = pick(rng, COUNT_ITEMS);
 
   if (level <= 2) {
+    const min = level <= 1 ? 1 : 3;
     const max = level <= 1 ? 5 : 10;
-    const n = randInt(rng, level <= 1 ? 1 : 3, max);
+    const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+    const n = weightedPick(rng, numbers, (value) => weight(`counting:${value}`));
     const { values, answer } = numberChoices(n, 3, 1, max, rng);
     return {
       text: 'มีกี่อันนะ?',
@@ -22,6 +24,7 @@ export function generateCounting(level: number, rng: Rng): Question {
       say: [th('นับดูสิ มีกี่อันนะ')],
       choices: values.map((v) => textChoice(String(v))),
       answer,
+      item: `counting:${n}`,
     };
   }
 
@@ -34,6 +37,7 @@ export function generateCounting(level: number, rng: Rng): Question {
       say: [th(most ? 'กลุ่มไหนมากที่สุดนะ' : 'กลุ่มไหนน้อยที่สุดนะ')],
       choices: counts.map((c) => groupChoice(emoji, c)),
       answer: counts.indexOf(wanted),
+      item: 'counting:compare',
     };
   }
 
@@ -51,6 +55,7 @@ export function generateCounting(level: number, rng: Rng): Question {
       say: [th(`${a} บวก ${b} ได้เท่าไหร่นะ`)],
       choices: values.map((v) => textChoice(String(v))),
       answer,
+      item: 'counting:add',
     };
   }
 

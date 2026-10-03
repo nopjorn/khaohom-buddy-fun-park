@@ -49,11 +49,17 @@ export function settingsScreen(app: App): ScreenView {
   };
   showVoices();
 
-  const reset = h('button', { class: 'btn btn-hold btn-danger', type: 'button' }, '🗑️ ล้างระดับและสติกเกอร์', h('small', null, 'กดค้างไว้'));
+  const reset = h(
+    'button',
+    { class: 'btn btn-hold btn-danger', type: 'button' },
+    '🗑️ ล้างระดับ สติกเกอร์ และสถิติ',
+    h('small', null, 'กดค้างไว้'),
+  );
   onHold(reset, RESET_HOLD_MS, () => {
     app.save.levels = defaults.levels;
     app.save.stickers = [];
     app.save.plays = 0;
+    app.save.stats = {};
     app.persist();
     reset.replaceChildren('ล้างเรียบร้อยแล้ว ✓');
   });
@@ -65,6 +71,7 @@ export function settingsScreen(app: App): ScreenView {
     h(
       'div',
       { class: 'settings-list' },
+      button('btn', '📊 ดูผลการเล่นของลูก', () => app.go({ name: 'report' })),
       field('ชื่อลูก', nameInput('childName')),
       field('ชื่อผู้ปกครอง', nameInput('parentName')),
       field(

@@ -10,7 +10,8 @@ export type Route =
   | { name: 'play'; zone: ZoneId; mode: Mode }
   | { name: 'result'; zone: ZoneId; mode: Mode; match: MatchState; award: StickerAward }
   | { name: 'stickers' }
-  | { name: 'settings' };
+  | { name: 'settings' }
+  | { name: 'report' };
 
 export interface App {
   save: SaveData;

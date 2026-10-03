@@ -20,6 +20,19 @@ export function pick<T>(rng: Rng, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
 }
 
+/** สุ่มโดยของที่น้ำหนักมากมีโอกาสถูกเลือกมากกว่า */
+export function weightedPick<T>(rng: Rng, items: readonly T[], weightOf: (item: T) => number): T {
+  const weights = items.map((item) => Math.max(weightOf(item), 0));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) return pick(rng, items);
+  let roll = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    roll -= weights[i];
+    if (roll < 0) return items[i];
+  }
+  return items[items.length - 1];
+}
+
 export function shuffle<T>(rng: Rng, items: readonly T[]): T[] {
   const out = items.slice();
   for (let i = out.length - 1; i > 0; i--) {

@@ -52,5 +52,6 @@ export function generatePattern(level: number, rng: Rng): Question {
     say: [th('อะไรมาต่อนะ')],
     choices: options.map(emojiChoice),
     answer: options.indexOf(correct),
+    item: `pattern:${Math.max(level, 1)}`,
   };
 }

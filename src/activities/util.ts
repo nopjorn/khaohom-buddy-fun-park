@@ -1,5 +1,8 @@
 import { sample, shuffle } from '../core/rng';
-import type { Choice, Lang, Rng, SayPart } from '../types';
+import type { Choice, ItemWeight, Lang, Rng, SayPart } from '../types';
+
+/** น้ำหนักเท่ากันทุกข้อ ใช้เมื่อยังไม่มีสถิติของลูก */
+export const evenWeight: ItemWeight = () => 1;
 
 export const th = (text: string): SayPart => ({ text, lang: 'th-TH' as Lang });
 export const en = (text: string): SayPart => ({ text, lang: 'en-US' as Lang });

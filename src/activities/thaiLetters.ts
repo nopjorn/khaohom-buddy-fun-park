@@ -1,7 +1,7 @@
-import { pick, sample, shuffle } from '../core/rng';
+import { sample, shuffle, weightedPick } from '../core/rng';
 import { ALL_CONSONANTS, THAI_EASY_COUNT, THAI_LETTERS, THAI_LOOKALIKES } from '../data/thai';
-import type { Question, Rng } from '../types';
-import { emojiChoice, textChoice, th, withDistractors } from './util';
+import type { ItemWeight, Question, Rng } from '../types';
+import { emojiChoice, evenWeight, textChoice, th, withDistractors } from './util';
 
 export const THAI_MAX_LEVEL = 4;
 
@@ -10,9 +10,10 @@ export const THAI_MAX_LEVEL = 4;
  * ระดับ 3 ภาพ → ตัวอักษร, ระดับ 4 ตัวอักษร → ภาพ โดยไม่บอกคำ
  * ระดับที่สูงกว่านั้นเป็นโจทย์ของผู้ปกครอง ที่ตัวลวงหน้าตาคล้ายคำตอบ
  */
-export function generateThai(level: number, rng: Rng): Question {
+export function generateThai(level: number, rng: Rng, weight: ItemWeight = evenWeight): Question {
   const pool = level <= 1 ? THAI_LETTERS.slice(0, THAI_EASY_COUNT) : THAI_LETTERS;
-  const target = pick(rng, pool);
+  const target = weightedPick(rng, pool, (t) => weight(`thai:${t.letter}`));
+  const item = `thai:${target.letter}`;
 
   if (level <= 2 || level === 4) {
     const reveal = level !== 4;
@@ -27,6 +28,7 @@ export function generateThai(level: number, rng: Rng): Question {
       say: [th(reveal ? `${target.letter} ${target.word} อยู่ไหนนะ` : 'ตัวนี้คู่กับภาพไหนนะ')],
       choices: options.map((o) => emojiChoice(o.emoji)),
       answer,
+      item,
     };
   }
 
@@ -38,6 +40,7 @@ export function generateThai(level: number, rng: Rng): Question {
       say: [th(`${target.word} คู่กับตัวไหนนะ`)],
       choices: options.map((o) => textChoice(o.letter)),
       answer,
+      item,
     };
   }
 

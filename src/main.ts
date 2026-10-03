@@ -6,6 +6,7 @@ import { loadSave, writeSave } from './core/storage';
 import { homeScreen } from './screens/home';
 import { modeScreen } from './screens/mode';
 import { playScreen } from './screens/play';
+import { reportScreen } from './screens/report';
 import { resultScreen } from './screens/result';
 import { settingsScreen } from './screens/settings';
 import { stickersScreen } from './screens/stickers';
@@ -35,6 +36,8 @@ function build(route: Route): ScreenView {
       return stickersScreen(app);
     case 'settings':
       return settingsScreen(app);
+    case 'report':
+      return reportScreen(app);
   }
 }
 

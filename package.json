@@ -1,7 +1,7 @@
 {
   "name": "buddy-fun-park",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "สวนสนุกคู่หู — เกม 2 คนสำหรับเด็ก 5 ขวบกับผู้ปกครอง เล่นพร้อมกันบน iPad",
   "type": "module",
   "scripts": {

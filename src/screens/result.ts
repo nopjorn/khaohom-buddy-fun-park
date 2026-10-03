@@ -1,7 +1,7 @@
 import { type App, CHILD_AVATAR, PARENT_AVATAR, type Route, type ScreenView } from '../app';
 import { h } from '../core/dom';
 import { speak } from '../core/speech';
-import { coopRating } from '../engine/match';
+import { coopRating, talkRating } from '../engine/match';
 import { button, confetti } from './ui';
 
 type ResultRoute = Extract<Route, { name: 'result' }>;
@@ -23,6 +23,15 @@ export function resultScreen(app: App, route: ResultRoute): ScreenView {
       h('div', { class: 'result-stars' }, '⭐'.repeat(coopRating(match))),
       h('div', { class: 'result-note' }, `🙌 ไฮไฟว์ ${match.highFives} ครั้ง`),
     );
+  } else if (mode === 'talk') {
+    title = '🚀 จรวดออกเดินทางแล้ว!';
+    cheer = 'จรวดออกเดินทางแล้ว คุยกันเก่งมากเลย';
+    detail = h(
+      'div',
+      { class: 'result-detail' },
+      h('div', { class: 'result-stars' }, '⭐'.repeat(talkRating(match))),
+      h('div', { class: 'result-note' }, match.wrong === 0 ? '💬 ไม่ผิดเลยสักข้อ!' : `💬 กดผิด ${match.wrong} ครั้ง`),
+    );
   } else {
     const winnerName = match.winner === 'child' ? childName : parentName;
     title = `🏆 ${winnerName} ชนะ!`;
@@ -30,7 +39,7 @@ export function resultScreen(app: App, route: ResultRoute): ScreenView {
     detail = h('div', { class: 'result-note' }, 'เก่งมากทั้งคู่เลย 👏');
   }
 
-  const scoreUnit = mode === 'coop' ? 'ข้อ' : 'ดาว';
+  const scoreUnit = mode === 'versus' ? 'ดาว' : 'ข้อ';
   const scores = h(
     'div',
     { class: 'result-scores' },

@@ -1,5 +1,5 @@
 import { h, onTap } from '../core/dom';
-import type { Activity, ActivityHost, Choice, Question, Visual } from '../types';
+import type { Activity, ActivityHost, Choice, KeyHalf, Question, SayPart, Visual } from '../types';
 import { bindKeys } from './keyBinding';
 
 const WRONG_LOCK_MS = 1000;
@@ -71,13 +71,38 @@ function columnsFor(choices: Choice[]): number {
   return choices.length === 4 ? 2 : 3;
 }
 
-/** โจทย์แบบเลือกตอบ ใช้ร่วมกันทุกกิจกรรมที่เป็น quiz */
-export function createQuiz(question: Question): Activity {
-  let host: ActivityHost | null = null;
-  let root: HTMLElement | null = null;
-  let buttons: HTMLButtonElement[] = [];
-  let keys = new Map<string, number>();
+const questionKey = (q: Question) =>
+  [q.text, JSON.stringify(q.visual ?? null), JSON.stringify(q.choices[q.answer])].join('|');
+
+/** ส่วนโจทย์: ข้อความและภาพ มี lead ไว้ใส่ป้ายบอกบทบาทของโหมดคุยกัน */
+function renderPrompt(question: Question, lead?: HTMLElement): HTMLElement {
+  return h(
+    'div',
+    { class: 'quiz-prompt' },
+    lead ?? null,
+    h('div', { class: 'quiz-text' }, question.text),
+    question.visual ? renderVisual(question.visual) : null,
+  );
+}
+
+interface AnswerEvents {
+  onCorrect(): void;
+  onWrong(): void;
+  onDone(): void;
+}
+
+interface ChoiceGrid {
+  el: HTMLElement;
+  bind(half: KeyHalf): void;
+  press(code: string): void;
+  hint(): void;
+  destroy(): void;
+}
+
+/** ส่วนตัวเลือก รับการแตะและการกดคีย์บอร์ด แล้วแจ้งผลผ่าน events */
+function createChoiceGrid(question: Question, events: AnswerEvents): ChoiceGrid {
   const cols = columnsFor(question.choices);
+  let keys = new Map<string, number>();
   let locked = false;
   let done = false;
   const timers: number[] = [];
@@ -85,9 +110,17 @@ export function createQuiz(question: Question): Activity {
     timers.push(window.setTimeout(fn, ms));
   };
 
+  const buttons = question.choices.map((choice, i) => {
+    const btn = renderChoice(choice);
+    onTap(btn, () => choose(i));
+    return btn;
+  });
+  const el = h('div', { class: isWordy(question.choices) ? 'quiz-choices wordy' : 'quiz-choices' }, ...buttons);
+  el.style.setProperty('--cols', String(cols));
+
   function choose(index: number): void {
     const btn = buttons[index];
-    if (!host || locked || done || btn.disabled) return;
+    if (locked || done || btn.disabled) return;
 
     if (index === question.answer) {
       done = true;
@@ -95,8 +128,8 @@ export function createQuiz(question: Question): Activity {
       buttons.forEach((b, i) => {
         if (i !== index) b.disabled = true;
       });
-      host.onCorrect();
-      later(() => host?.onDone(), DONE_DELAY_MS);
+      events.onCorrect();
+      later(() => events.onDone(), DONE_DELAY_MS);
       return;
     }
 
@@ -104,66 +137,156 @@ export function createQuiz(question: Question): Activity {
     locked = true;
     btn.classList.add('wrong');
     btn.disabled = true;
-    root?.classList.add('locked');
-    host.onWrong();
+    el.classList.add('locked');
+    events.onWrong();
     later(() => {
       locked = false;
-      root?.classList.remove('locked');
+      el.classList.remove('locked');
     }, WRONG_LOCK_MS);
   }
 
   return {
-    key: [question.text, JSON.stringify(question.visual ?? null), JSON.stringify(question.choices[question.answer])].join('|'),
-
-    mount(el, activityHost) {
-      host = activityHost;
-      buttons = question.choices.map((choice, i) => {
-        const btn = renderChoice(choice);
-        onTap(btn, () => choose(i));
-        return btn;
-      });
-      keys = bindKeys(host.keyHalf, buttons, cols);
-      const choices = h('div', { class: isWordy(question.choices) ? 'quiz-choices wordy' : 'quiz-choices' }, ...buttons);
-      choices.style.setProperty('--cols', String(cols));
-      root = h(
-        'div',
-        { class: 'quiz' },
-        h(
-          'div',
-          { class: 'quiz-prompt' },
-          h('div', { class: 'quiz-text' }, question.text),
-          question.visual ? renderVisual(question.visual) : null,
-        ),
-        choices,
-      );
-      el.append(root);
-      host.speak(question.say);
+    el,
+    bind(half) {
+      keys = bindKeys(half, buttons, cols);
     },
-
+    press(code) {
+      const index = keys.get(code);
+      if (index !== undefined) choose(index);
+    },
     hint() {
       if (done) return;
       const btn = buttons[question.answer];
       btn.classList.add('hint');
       later(() => btn.classList.remove('hint'), HINT_MS);
     },
+    destroy() {
+      timers.forEach((t) => window.clearTimeout(t));
+    },
+  };
+}
 
+/** ส่งต่อผลการตอบไปยัง host ที่ยังผูกอยู่ หลัง destroy แล้ว host เป็น null จึงไม่มีอะไรเกิดขึ้น */
+function hostEvents(getHost: () => ActivityHost | null): AnswerEvents {
+  return {
+    onCorrect: () => getHost()?.onCorrect(),
+    onWrong: () => getHost()?.onWrong(),
+    onDone: () => getHost()?.onDone(),
+  };
+}
+
+/** โจทย์แบบเลือกตอบ ใช้ร่วมกันทุกกิจกรรมที่เป็น quiz */
+export function createQuiz(question: Question): Activity {
+  let host: ActivityHost | null = null;
+  let root: HTMLElement | null = null;
+  const grid = createChoiceGrid(
+    question,
+    hostEvents(() => host),
+  );
+
+  return {
+    key: questionKey(question),
+    item: question.item,
+
+    mount(el, activityHost) {
+      host = activityHost;
+      grid.bind(host.keyHalf);
+      root = h('div', { class: 'quiz' }, renderPrompt(question), grid.el);
+      el.append(root);
+      host.speak(question.say);
+    },
+    hint: () => grid.hint(),
     repeat() {
       host?.speak(question.say);
     },
-
-    pressKey(code) {
-      const index = keys.get(code);
-      if (index !== undefined) choose(index);
-    },
-
-    rebindKeys(half) {
-      keys = bindKeys(half, buttons, cols);
-    },
-
+    pressKey: (code) => grid.press(code),
+    rebindKeys: (half) => grid.bind(half),
     destroy() {
-      timers.forEach((t) => window.clearTimeout(t));
+      grid.destroy();
       root?.remove();
       host = null;
     },
   };
+}
+
+export interface TalkRoles {
+  /** ป้ายบนแผงของคนที่เห็นโจทย์ และแผงของคนที่กดคำตอบ */
+  askNote: string;
+  answerNote: string;
+  /** คำอธิบายบทบาทของแต่ละแผงเป็นเสียง */
+  askSay: SayPart[];
+  answerSay: SayPart[];
+  /** true คือพูดคำอธิบายบทบาททันทีที่ขึ้นโจทย์ ถ้า false จะพูดเมื่อกดฟังซ้ำเท่านั้น */
+  announce: boolean;
+}
+
+function roleBadge(icon: string, note: string): HTMLElement {
+  return h('div', { class: 'talk-role' }, h('span', { class: 'talk-role-icon' }, icon), h('span', null, note));
+}
+
+/**
+ * โจทย์หนึ่งข้อของโหมดคุยกัน แยกเป็นสองแผง: คนถามเห็นโจทย์แต่ไม่เห็นตัวเลือก
+ * คนตอบเห็นตัวเลือกแต่ไม่เห็นโจทย์ จึงต้องพูดคุยกันก่อนกด
+ */
+export function createTalkPair(question: Question, roles: TalkRoles): { asker: Activity; answerer: Activity } {
+  let askHost: ActivityHost | null = null;
+  let askRoot: HTMLElement | null = null;
+  let answerHost: ActivityHost | null = null;
+  let answerRoot: HTMLElement | null = null;
+  const grid = createChoiceGrid(
+    question,
+    hostEvents(() => answerHost),
+  );
+  const key = questionKey(question);
+
+  const asker: Activity = {
+    key,
+    mount(el, host) {
+      askHost = host;
+      askRoot = h('div', { class: 'quiz talk-ask' }, renderPrompt(question, roleBadge('👀', roles.askNote)));
+      el.append(askRoot);
+      if (roles.announce) host.speak(roles.askSay);
+    },
+    hint() {},
+    // ปุ่มฟังซ้ำของคนถามคืออ่านโจทย์เต็ม ใช้เป็นตัวช่วยเมื่อลูกยังบอกเองไม่ได้
+    repeat() {
+      askHost?.speak(question.say);
+    },
+    pressKey() {},
+    rebindKeys() {},
+    destroy() {
+      askRoot?.remove();
+      askHost = null;
+    },
+  };
+
+  const answerer: Activity = {
+    key,
+    item: question.item,
+    mount(el, host) {
+      answerHost = host;
+      grid.bind(host.keyHalf);
+      answerRoot = h(
+        'div',
+        { class: 'quiz talk-answer' },
+        h('div', { class: 'quiz-prompt' }, roleBadge('👂', roles.answerNote)),
+        grid.el,
+      );
+      el.append(answerRoot);
+      if (roles.announce) host.speak(roles.answerSay);
+    },
+    hint: () => grid.hint(),
+    repeat() {
+      answerHost?.speak(roles.answerSay);
+    },
+    pressKey: (code) => grid.press(code),
+    rebindKeys: (half) => grid.bind(half),
+    destroy() {
+      grid.destroy();
+      answerRoot?.remove();
+      answerHost = null;
+    },
+  };
+
+  return { asker, answerer };
 }
