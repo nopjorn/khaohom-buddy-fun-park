@@ -2,7 +2,6 @@ import { h, onTap } from '../core/dom';
 import type { Activity, ActivityHost, Choice, KeyHalf, Question, SayPart, Visual } from '../types';
 import { bindKeys } from './keyBinding';
 
-const WRONG_LOCK_MS = 1000;
 const DONE_DELAY_MS = 900;
 const HINT_MS = 2000;
 
@@ -110,6 +109,7 @@ interface AnswerEvents {
   onCorrect(): void;
   onWrong(): void;
   onDone(): void;
+  lockMs(misses: number): number;
 }
 
 interface ChoiceGrid {
@@ -126,6 +126,7 @@ function createChoiceGrid(question: Question, events: AnswerEvents): ChoiceGrid 
   let keys = new Map<string, number>();
   let locked = false;
   let done = false;
+  let misses = 0;
   const timers: number[] = [];
   const later = (fn: () => void, ms: number) => {
     timers.push(window.setTimeout(fn, ms));
@@ -156,6 +157,7 @@ function createChoiceGrid(question: Question, events: AnswerEvents): ChoiceGrid 
 
     // ตอบผิดไม่เสียคะแนน แค่ตัวเลือกนั้นหายไปและพักสั้น ๆ กันการกดรัว
     locked = true;
+    misses += 1;
     btn.classList.add('wrong');
     btn.disabled = true;
     el.classList.add('locked');
@@ -163,7 +165,7 @@ function createChoiceGrid(question: Question, events: AnswerEvents): ChoiceGrid 
     later(() => {
       locked = false;
       el.classList.remove('locked');
-    }, WRONG_LOCK_MS);
+    }, events.lockMs(misses));
   }
 
   return {
@@ -193,6 +195,7 @@ function hostEvents(getHost: () => ActivityHost | null): AnswerEvents {
     onCorrect: () => getHost()?.onCorrect(),
     onWrong: () => getHost()?.onWrong(),
     onDone: () => getHost()?.onDone(),
+    lockMs: (misses) => getHost()?.wrongLockMs(misses) ?? 1000,
   };
 }
 

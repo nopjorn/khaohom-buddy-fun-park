@@ -18,6 +18,7 @@ import {
   coopRating,
   createMatch,
   type MatchState,
+  wrongLockMs,
 } from '../src/engine/match';
 import { awardSticker } from '../src/engine/stickers';
 import type { Side } from '../src/types';
@@ -219,5 +220,15 @@ describe('สติกเกอร์', () => {
     const extra = awardSticker(owned, rng);
     expect(extra.isNew).toBe(false);
     expect(STICKERS).toContain(extra.sticker);
+  });
+});
+
+describe('wrongLockMs', () => {
+  it('โหมดแข่งกันพักนานขึ้นเมื่อผิดซ้ำ สูงสุด 3 วินาที', () => {
+    expect([1, 2, 3, 4].map((n) => wrongLockMs('versus', n))).toEqual([1000, 2000, 3000, 3000]);
+  });
+  it('โหมดอื่นพัก 1 วินาทีเสมอ', () => {
+    expect(wrongLockMs('coop', 3)).toBe(1000);
+    expect(wrongLockMs('talk', 3)).toBe(1000);
   });
 });

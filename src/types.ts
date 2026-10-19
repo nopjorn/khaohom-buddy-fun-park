@@ -66,6 +66,8 @@ export interface ActivityHost {
   keyHalf: KeyHalf;
   onCorrect(): void;
   onWrong(): void;
+  /** เวลาพักหลังตอบผิดครั้งที่ misses ของข้อนี้ */
+  wrongLockMs(misses: number): number;
   /** จบรอบแล้ว ขอโจทย์ถัดไป */
   onDone(): void;
   speak(parts: SayPart[]): void;
