@@ -1,8 +1,17 @@
 export type Side = 'child' | 'parent';
 /** coop = ต่างคนต่างตอบแล้วรวมคะแนน, talk = คนหนึ่งเห็นโจทย์อีกคนกดคำตอบ, versus = แข่งกัน */
 export type Mode = 'coop' | 'talk' | 'versus';
-export type ZoneId = 'numbers' | 'thai' | 'english' | 'brain' | 'mix';
-export type ActivityId = 'counting' | 'thai' | 'english' | 'pattern' | 'memory';
+export type ZoneId = 'numbers' | 'thai' | 'english' | 'colors' | 'brain' | 'mix';
+export type ActivityId =
+  | 'counting'
+  | 'money'
+  | 'thai'
+  | 'vowels'
+  | 'english'
+  | 'shapes'
+  | 'compare'
+  | 'pattern'
+  | 'memory';
 export type Handicap = 'low' | 'normal' | 'high';
 export type Seating = 'side' | 'facing';
 export type Lang = 'th-TH' | 'en-US';
@@ -26,12 +35,20 @@ export interface SayPart {
 export type Visual =
   | { kind: 'groups'; groups: string[][]; joiner?: string }
   | { kind: 'glyph'; text: string; caption?: string }
-  | { kind: 'sequence'; items: string[] };
+  | { kind: 'sequence'; items: string[] }
+  /** ของเรียงเป็นแถวโดยไม่มีช่องให้เติม ใช้ถามตำแหน่ง */
+  | { kind: 'row'; items: string[] }
+  /** เหรียญบาท ค่าคือราคาของแต่ละเหรียญ */
+  | { kind: 'coins'; values: number[] };
 
 export type Choice =
   | { kind: 'emoji'; label: string }
   | { kind: 'text'; label: string }
-  | { kind: 'group'; label: string; count: number };
+  | { kind: 'group'; label: string; count: number }
+  /** ภาพเดียวกันแต่ขนาดต่างกัน scale คือสัดส่วนของขนาดเต็ม */
+  | { kind: 'sized'; label: string; scale: number }
+  /** กองเหรียญ label คือยอดรวม */
+  | { kind: 'coins'; label: string; values: number[] };
 
 export interface Question {
   text: string;
@@ -89,4 +106,8 @@ export interface Settings {
   seating: Seating;
   /** true เมื่อสลับให้ลูกไปอยู่ฝั่งขวา (หรือด้านบนในท่านั่งตรงข้าม) */
   swapped: boolean;
+  childAvatar: string;
+  parentAvatar: string;
+  /** เวลาเล่นต่อวันเป็นนาที 0 คือไม่จำกัด */
+  dailyLimit: number;
 }

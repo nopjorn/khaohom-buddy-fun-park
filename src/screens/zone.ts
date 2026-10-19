@@ -8,6 +8,7 @@ const ZONE_COLORS: Record<ZoneId, string> = {
   numbers: '#ff9f1c',
   thai: '#ff5d8f',
   english: '#4d8dff',
+  colors: '#00b4d8',
   brain: '#9b5de5',
   mix: '#2dc653',
 };

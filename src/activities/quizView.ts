@@ -47,7 +47,18 @@ function renderVisual(visual: Visual): HTMLElement {
       row.style.setProperty('--n', String(visual.items.length + 1));
       return row;
     }
+    case 'row': {
+      const row = h('div', { class: 'vis-sequence vis-row' }, ...visual.items.map((item) => h('span', { class: 'vis-item' }, item)));
+      row.style.setProperty('--n', String(visual.items.length));
+      return row;
+    }
+    case 'coins':
+      return coinPile(visual.values, 'vis-coins');
   }
+}
+
+function coinPile(values: number[], className: string): HTMLElement {
+  return h('div', { class: className }, ...values.map((v) => h('span', { class: `coin coin-${v}` }, String(v))));
 }
 
 function renderChoice(choice: Choice): HTMLButtonElement {
@@ -56,14 +67,24 @@ function renderChoice(choice: Choice): HTMLButtonElement {
     for (let i = 0; i < choice.count; i++) btn.append(h('span', { class: 'vis-item' }, choice.label));
     btn.style.setProperty('--per-row', String(Math.min(choice.count, 5)));
     btn.style.setProperty('--per-row-wide', String(choice.count));
+  } else if (choice.kind === 'coins') {
+    btn.append(coinPile(choice.values, 'choice-coins-pile'));
+  } else if (choice.kind === 'sized') {
+    const label = h('span', { class: 'choice-label' }, choice.label);
+    label.style.setProperty('--scale', String(choice.scale));
+    btn.append(label);
   } else {
     btn.append(h('span', { class: 'choice-label' }, choice.label));
   }
   return btn;
 }
 
+// สระและวรรณยุกต์ที่อยู่บนล่างพยัญชนะไม่กินที่ในแนวนอน จึงไม่นับเป็นความยาว
+const THAI_MARKS = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g;
+const visibleLength = (label: string) => label.replace(THAI_MARKS, '').length;
+
 /** ตัวเลือกที่เป็นคำ (ยาวกว่าตัวเลขสองหลัก) ต้องใช้ตัวอักษรเล็กลงและช่องกว้างขึ้น */
-const isWordy = (choices: Choice[]) => choices.some((c) => c.kind === 'text' && c.label.length > 2);
+const isWordy = (choices: Choice[]) => choices.some((c) => c.kind === 'text' && visibleLength(c.label) > 2);
 
 function columnsFor(choices: Choice[]): number {
   if (choices.some((c) => c.kind === 'group')) return 1;

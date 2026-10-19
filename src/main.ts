@@ -4,11 +4,16 @@ import { setSoundEnabled, unlockAudio } from './core/audio';
 import { initSpeech, setSpeechEnabled, stopSpeech, unlockSpeech } from './core/speech';
 import { loadSave, writeSave } from './core/storage';
 import { initUpdates } from './core/update';
+import { dateKey, timeLeftMs } from './engine/daylog';
+import { backupScreen } from './screens/backup';
 import { changelogScreen } from './screens/changelog';
 import { homeScreen } from './screens/home';
 import { modeScreen } from './screens/mode';
 import { playScreen } from './screens/play';
+import { profilesScreen } from './screens/profiles';
+import { questsScreen } from './screens/quests';
 import { reportScreen } from './screens/report';
+import { restScreen } from './screens/rest';
 import { resultScreen } from './screens/result';
 import { settingsScreen } from './screens/settings';
 import { stickersScreen } from './screens/stickers';
@@ -22,7 +27,14 @@ function applySettings(): void {
   setSpeechEnabled(app.save.settings.speech);
 }
 
+/** ครบเวลาเล่นที่ผู้ปกครองตั้งไว้แล้ว ทางเข้าเกมทุกทางจะพาไปหน้าพักแทน */
+function timeUp(): boolean {
+  const { days, settings, extraTimeDay } = app.save;
+  return timeLeftMs(days, dateKey(new Date()), settings.dailyLimit, extraTimeDay) <= 0;
+}
+
 function build(route: Route): ScreenView {
+  if ((route.name === 'zone' || route.name === 'mode' || route.name === 'play') && timeUp()) return restScreen(app);
   switch (route.name) {
     case 'home':
       return homeScreen(app);
@@ -42,6 +54,14 @@ function build(route: Route): ScreenView {
       return reportScreen(app);
     case 'changelog':
       return changelogScreen(app);
+    case 'profiles':
+      return profilesScreen(app);
+    case 'quests':
+      return questsScreen(app);
+    case 'rest':
+      return restScreen(app);
+    case 'backup':
+      return backupScreen(app);
   }
 }
 

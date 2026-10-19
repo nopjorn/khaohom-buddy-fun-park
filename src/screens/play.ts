@@ -1,11 +1,12 @@
 import { ACTIVITIES, ACTIVITY_IDS, zoneById } from '../activities';
 import { createTalkPair } from '../activities/quizView';
-import { type App, CHILD_AVATAR, PARENT_AVATAR, type ScreenView } from '../app';
+import type { App, ScreenView } from '../app';
 import { sfx } from '../core/audio';
 import { h, keycap, onTap } from '../core/dom';
 import { halfOfKey } from '../core/keys';
 import { mulberry32, pick, randInt } from '../core/rng';
-import { speak, stopSpeech } from '../core/speech';
+import { canSpeak, speak, stopSpeech } from '../core/speech';
+import { addPlayTime, dateKey, recordCombo, recordDayAnswer } from '../engine/daylog';
 import { type LevelState, newLevelState, parentDelayMs, recordAnswer } from '../engine/difficulty';
 import { recordResult, weightOf } from '../engine/mastery';
 import {
@@ -18,7 +19,7 @@ import {
 } from '../engine/match';
 import { type AnswerResult, Panel } from '../engine/panel';
 import { praiseFor } from '../engine/praise';
-import { awardSticker } from '../engine/stickers';
+import { finishGame } from '../engine/rewards';
 import type { ActivityId, ItemWeight, KeyHalf, Mode, SayPart, Seating, Side, ZoneId } from '../types';
 import { button, confetti } from './ui';
 
@@ -152,21 +153,43 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     app.persist();
   }
 
+  // วันที่นับตอนเริ่มเกม เกมที่เล่นข้ามเที่ยงคืนจะได้นับเป็นวันเดียว
+  const today = dateKey(new Date());
+
   function recordChildItem(result: AnswerResult): void {
     if (!result.item) return;
     app.save.stats = recordResult(app.save.stats, result.item, result.missed);
+    const activity = result.item.split(':')[0] as ActivityId;
+    app.save.days = recordDayAnswer(app.save.days, today, activity, result.missed);
     app.persist();
+  }
+
+  // เวลาเล่นจริงของวันนี้ บันทึกตอนจบเกมหรือออกกลางคัน ใช้กับการจำกัดเวลาเล่น
+  let countedUntil = 0;
+  function saveTime(): void {
+    if (!started) return;
+    const now = clock();
+    app.save.days = addPlayTime(app.save.days, today, now - countedUntil);
+    countedUntil = now;
+    app.persist();
+  }
+
+  // เครื่องที่ไม่มีเสียงภาษาไทย แสดงโจทย์เป็นข้อความให้ผู้ปกครองอ่านให้ลูกฟังแทน
+  function speakChild(parts: SayPart[]): void {
+    speak(parts, performance.now() < praiseUntil);
+    const silent = parts.filter((p) => !canSpeak(p.lang));
+    if (silent.length > 0) child.caption(silent.map((p) => p.text).join(' '));
   }
 
   const child = new Panel({
     side: 'child',
     name: settings.childName,
-    avatar: CHILD_AVATAR,
+    avatar: settings.childAvatar,
     activities: zoneDef.activities,
     rng: panelRng(),
     levels: talk ? null : levels,
     // ถ้าคำชมยังพูดไม่จบ ให้โจทย์ถัดไปพูดต่อท้ายแทนการตัดเสียงคำชม
-    speak: (parts) => speak(parts, performance.now() < praiseUntil),
+    speak: speakChild,
     delayMs: () => 0,
     keyHalf: () => keyHalfOf('child'),
     onCorrect: (streak) => correct('child', streak),
@@ -185,7 +208,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   const parent = new Panel({
     side: 'parent',
     name: settings.parentName,
-    avatar: PARENT_AVATAR,
+    avatar: settings.parentAvatar,
     activities: zoneDef.activities,
     rng: panelRng(),
     levels: null,
@@ -281,7 +304,10 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
       finish();
       return;
     }
-    if (side === 'child') praise(streak);
+    if (side === 'child') {
+      app.save.days = recordCombo(app.save.days, today, streak);
+      praise(streak);
+    }
   }
 
   /** ชมลูกด้วยชื่อเมื่อตอบถูกติดกันถึงจังหวะ */
@@ -300,14 +326,15 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     stopSpeech();
     hud.setWaiting(null);
     sfx.win();
+    saveTime();
 
-    const award = awardSticker(app.save.stickers, rng);
-    if (award.isNew) app.save.stickers.push(award.sticker);
-    app.save.plays += 1;
+    const rewards = finishGame(app.save, mode, today, rng);
+    app.save = rewards.save;
     app.persist();
+    const { award, bonuses, newSets } = rewards;
 
     el.append(confetti(), h('div', { class: 'finish-banner' }, mode === 'versus' ? '🏆' : '🚀'));
-    later(() => app.go({ name: 'result', zone, mode, match, award }), RESULT_DELAY_MS);
+    later(() => app.go({ name: 'result', zone, mode, match, award, bonuses, newSets }), RESULT_DELAY_MS);
   }
 
   function swapSides(): void {
@@ -372,6 +399,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
         overlay.remove();
         match = createMatch(mode, clock());
         started = true;
+        countedUntil = clock();
         child.start();
         parent.start();
         if (talk) nextTalkRound();
@@ -382,6 +410,11 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
       h('span', { class: 'count-num' }, String(n)),
       h('span', { class: 'key-hint' }, 'กดปุ่มบนคีย์บอร์ดตามตัวอักษรที่มุมของแต่ละช่อง'),
     );
+    if (!canSpeak('th-TH')) {
+      overlay.append(
+        h('span', { class: 'voice-hint' }, '🗣️ เครื่องนี้ไม่มีเสียงภาษาไทย ผู้ปกครองช่วยอ่านข้อความบนแผงของลูกให้ฟังนะ'),
+      );
+    }
     sfx.tick();
     later(() => countdown(overlay, n - 1), COUNTDOWN_STEP_MS);
   }
@@ -400,6 +433,9 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
   return {
     el,
     destroy() {
+      // ออกจากหน้าพักเกม เวลาที่พักไว้ต้องไม่ถูกนับเป็นเวลาเล่น
+      resume?.();
+      if (!finished) saveTime();
       window.removeEventListener('keydown', onKeyDown);
       timers.forEach((id) => window.clearTimeout(id));
       timers.clear();
