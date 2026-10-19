@@ -1,14 +1,20 @@
-import { type App, CHILD_AVATAR, PARENT_AVATAR, type Route, type ScreenView } from '../app';
+import type { App, Route, ScreenView } from '../app';
 import { h } from '../core/dom';
 import { speak } from '../core/speech';
 import { coopRating, talkRating } from '../engine/match';
+import type { Bonus } from '../engine/rewards';
 import { button, confetti } from './ui';
 
 type ResultRoute = Extract<Route, { name: 'result' }>;
 
+function bonusText(bonus: Bonus): string {
+  if (bonus.reason === 'quest') return 'ทำภารกิจวันนี้ครบ! ได้รางวัลพิเศษ';
+  return `เล่นต่อเนื่อง ${bonus.streak} วัน! ได้รางวัลพิเศษ`;
+}
+
 export function resultScreen(app: App, route: ResultRoute): ScreenView {
-  const { zone, mode, match, award } = route;
-  const { childName, parentName } = app.save.settings;
+  const { zone, mode, match, award, bonuses, newSets } = route;
+  const { childName, parentName, childAvatar, parentAvatar } = app.save.settings;
 
   let title: string;
   let detail: HTMLElement;
@@ -43,20 +49,38 @@ export function resultScreen(app: App, route: ResultRoute): ScreenView {
   const scores = h(
     'div',
     { class: 'result-scores' },
-    h('div', { class: 'score-card score-child' }, `${CHILD_AVATAR} ${childName}`, h('b', null, `${match.score.child} ${scoreUnit}`)),
-    h('div', { class: 'score-card score-parent' }, `${PARENT_AVATAR} ${parentName}`, h('b', null, `${match.score.parent} ${scoreUnit}`)),
+    h('div', { class: 'score-card score-child' }, `${childAvatar} ${childName}`, h('b', null, `${match.score.child} ${scoreUnit}`)),
+    h('div', { class: 'score-card score-parent' }, `${parentAvatar} ${parentName}`, h('b', null, `${match.score.parent} ${scoreUnit}`)),
   );
 
-  const sticker = h(
-    'div',
-    { class: 'sticker-award' },
-    h('span', { class: 'sticker-award-icon' }, award.sticker),
-    h('span', null, award.isNew ? 'ได้สติกเกอร์ใหม่!' : 'สะสมสติกเกอร์ครบแล้ว!'),
-  );
+  const awards = [
+    h(
+      'div',
+      { class: 'sticker-award' },
+      h('span', { class: 'sticker-award-icon' }, award.sticker),
+      h('span', null, award.isNew ? 'ได้สติกเกอร์ใหม่!' : 'สะสมสติกเกอร์ครบแล้ว!'),
+    ),
+    ...bonuses.map((bonus) =>
+      h(
+        'div',
+        { class: 'sticker-award special' },
+        h('span', { class: 'sticker-award-icon' }, bonus.award.sticker),
+        h('span', null, bonusText(bonus)),
+      ),
+    ),
+    ...newSets.map((set) =>
+      h(
+        'div',
+        { class: 'sticker-award special' },
+        h('span', { class: 'sticker-award-icon' }, set.icon),
+        h('span', null, `สะสมชุด${set.name}ครบ! ปลดล็อกภาพประจำตัว ${set.unlocks.join(' ')}`),
+      ),
+    ),
+  ];
 
   const el = h(
     'div',
-    { class: 'screen result' },
+    { class: 'screen result scrollable' },
     confetti(),
     h(
       'div',
@@ -64,7 +88,7 @@ export function resultScreen(app: App, route: ResultRoute): ScreenView {
       h('h1', { class: 'title' }, title),
       detail,
       scores,
-      sticker,
+      h('div', { class: 'award-list' }, ...awards),
       h(
         'div',
         { class: 'home-row' },
@@ -75,6 +99,7 @@ export function resultScreen(app: App, route: ResultRoute): ScreenView {
     ),
   );
 
-  speak([{ text: cheer, lang: 'th-TH' }]);
+  const extra = bonuses.length > 0 || newSets.length > 0 ? ' แล้วยังได้รางวัลพิเศษด้วย' : '';
+  speak([{ text: cheer + extra, lang: 'th-TH' }]);
   return { el };
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { describeItem } from '../src/activities';
+import { COMPARE_MAX_LEVEL, generateCompare } from '../src/activities/compare';
 import { COUNTING_MAX_LEVEL, generateCounting } from '../src/activities/counting';
+import { MONEY_MAX_LEVEL, generateMoney } from '../src/activities/money';
+import { SHAPES_MAX_LEVEL, generateShapes } from '../src/activities/shapes';
+import { VOWELS_MAX_LEVEL, generateVowels } from '../src/activities/vowels';
 import { ENGLISH_MAX_LEVEL, generateEnglish, misspellings } from '../src/activities/english';
 import { PATTERN_MAX_LEVEL, generatePattern } from '../src/activities/pattern';
 import { THAI_MAX_LEVEL, generateThai } from '../src/activities/thaiLetters';
@@ -11,7 +16,11 @@ import type { Choice, Question, Rng, Visual } from '../src/types';
 
 const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
 
-const choiceKey = (c: Choice) => (c.kind === 'group' ? `group:${c.label}:${c.count}` : `${c.kind}:${c.label}`);
+const choiceKey = (c: Choice) => {
+  if (c.kind === 'group') return `group:${c.label}:${c.count}`;
+  if (c.kind === 'sized') return `sized:${c.label}:${c.scale}`;
+  return `${c.kind}:${c.label}`;
+};
 
 function each(generate: (level: number, rng: Rng) => Question, level: number, check: (q: Question) => void): void {
   for (const seed of SEEDS) check(generate(level, mulberry32(seed)));
@@ -29,6 +38,10 @@ describe.each([
   ['thai', generateThai, THAI_MAX_LEVEL],
   ['english', generateEnglish, ENGLISH_MAX_LEVEL],
   ['pattern', generatePattern, PATTERN_MAX_LEVEL],
+  ['shapes', generateShapes, SHAPES_MAX_LEVEL],
+  ['compare', generateCompare, COMPARE_MAX_LEVEL],
+  ['vowels', generateVowels, VOWELS_MAX_LEVEL],
+  ['money', generateMoney, MONEY_MAX_LEVEL],
 ] as const)('โจทย์ %s', (_name, generate, maxLevel) => {
   it('ทุกระดับมีคำตอบอยู่ในตัวเลือก และตัวเลือกไม่ซ้ำกัน', () => {
     for (let level = 1; level <= maxLevel + 1; level++) {
@@ -50,6 +63,19 @@ describe.each([
       });
     }
     each(generate, maxLevel + 1, (q) => expect(q.choices).toHaveLength(6));
+  });
+
+  it('โจทย์ของลูกมี item ที่หน้าสรุปแสดงได้ ส่วนโจทย์ของผู้ปกครองไม่มี item และไม่อ่านออกเสียง', () => {
+    for (let level = 1; level <= maxLevel; level++) {
+      each(generate, level, (q) => {
+        expect(q.item).toBeDefined();
+        expect(describeItem(q.item!).icon).not.toBe('❔');
+      });
+    }
+    each(generate, maxLevel + 1, (q) => {
+      expect(q.item).toBeUndefined();
+      expect(q.say).toEqual([]);
+    });
   });
 });
 
@@ -226,5 +252,100 @@ describe('numberChoices', () => {
         expect(Math.max(...values)).toBeLessThanOrEqual(5);
       }
     }
+  });
+});
+
+const coinTotal = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+describe('สีและรูปทรง', () => {
+  it('ระดับ 4 มีอันที่ไม่เหมือนเพื่อนอันเดียว', () => {
+    each(generateShapes, 4, (q) => {
+      expect(q.choices).toHaveLength(4);
+      expect(q.item).toBe('shapes:odd');
+    });
+  });
+
+  it('ข้อที่ผิดบ่อยถูกสุ่มเจอบ่อยขึ้น', () => {
+    let hits = 0;
+    for (const seed of SEEDS) {
+      const q = generateShapes(1, mulberry32(seed), (id) => (id === 'shapes:green' ? 20 : 1));
+      if (q.item === 'shapes:green') hits += 1;
+    }
+    expect(hits).toBeGreaterThan(SEEDS.length / 2);
+  });
+
+  it('ผู้ปกครองนับสีในกอง คำตอบตรงกับจำนวนที่นับได้', () => {
+    each(generateShapes, SHAPES_MAX_LEVEL + 1, (q) => {
+      expect(visualOf(q, 'groups').groups[0]).toHaveLength(15);
+    });
+  });
+});
+
+describe('ใหญ่เล็ก ก่อนหลัง ซ้ายขวา', () => {
+  it('ระดับ 1 ภาพเดียวกันสามขนาด คำตอบคือขนาดที่โจทย์ถาม', () => {
+    each(generateCompare, 1, (q) => {
+      const scales = q.choices.map((c) => (c.kind === 'sized' ? c.scale : NaN));
+      const wanted = q.text.includes('ใหญ่') ? Math.max(...scales) : Math.min(...scales);
+      expect(scales[q.answer]).toBe(wanted);
+    });
+  });
+
+  it('ระดับ 2 คำตอบคือเลขที่ติดกันตามโจทย์', () => {
+    each(generateCompare, 2, (q) => {
+      const n = Number(q.text.match(/\d+/)![0]);
+      expect(Number(answerLabel(q))).toBe(q.text.includes('หลัง') ? n + 1 : n - 1);
+    });
+  });
+
+  it('ระดับ 3 คำตอบอยู่ตำแหน่งที่โจทย์ถาม', () => {
+    each(generateCompare, 3, (q) => {
+      const items = visualOf(q, 'row').items;
+      const index = q.text.includes('ซ้าย') ? 0 : q.text.includes('ขวา') ? items.length - 1 : 1;
+      expect(answerLabel(q)).toBe(items[index]);
+    });
+  });
+});
+
+describe('ประสมคำ', () => {
+  it('ระดับ 2 แสดงพยัญชนะกับสระของคำตอบ', () => {
+    each(generateVowels, 2, (q) => {
+      const text = visualOf(q, 'glyph').text;
+      expect(text).toContain('+');
+      expect(q.item?.startsWith('vowels:')).toBe(true);
+    });
+  });
+
+  it('ผู้ปกครองมีคำที่ใช้สระเดียวกันเพียงคำเดียว', () => {
+    each(generateVowels, VOWELS_MAX_LEVEL + 1, (q) => {
+      expect(q.choices.map((c) => c.label)).not.toContain(visualOf(q, 'glyph').text);
+    });
+  });
+});
+
+describe('นับเงิน', () => {
+  it('ระดับ 1-3 คำตอบคือยอดรวมของเหรียญ', () => {
+    for (const level of [1, 2, 3]) {
+      each(generateMoney, level, (q) => {
+        expect(Number(answerLabel(q))).toBe(coinTotal(visualOf(q, 'coins').values));
+      });
+    }
+  });
+
+  it('ระดับ 3 รวมไม่เกิน 20 บาท', () => {
+    each(generateMoney, 3, (q) => expect(coinTotal(visualOf(q, 'coins').values)).toBeLessThanOrEqual(20));
+  });
+
+  it('ระดับ 4 คำตอบคือกองที่เงินมากที่สุด', () => {
+    each(generateMoney, 4, (q) => {
+      const totals = q.choices.map((c) => (c.kind === 'coins' ? coinTotal(c.values) : NaN));
+      expect(totals[q.answer]).toBe(Math.max(...totals));
+    });
+  });
+
+  it('ผู้ปกครองทอนเงินจาก 100 บาท', () => {
+    each(generateMoney, MONEY_MAX_LEVEL + 1, (q) => {
+      const price = Number(visualOf(q, 'glyph').text.match(/\d+/)![0]);
+      expect(Number(answerLabel(q))).toBe(100 - price);
+    });
   });
 });

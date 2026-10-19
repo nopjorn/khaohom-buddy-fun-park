@@ -1,5 +1,7 @@
 import type { SaveData } from './core/storage';
+import type { StickerSet } from './data/items';
 import type { MatchState } from './engine/match';
+import type { Bonus } from './engine/rewards';
 import type { StickerAward } from './engine/stickers';
 import type { Mode, ZoneId } from './types';
 
@@ -8,11 +10,23 @@ export type Route =
   | { name: 'zone' }
   | { name: 'mode'; zone: ZoneId }
   | { name: 'play'; zone: ZoneId; mode: Mode }
-  | { name: 'result'; zone: ZoneId; mode: Mode; match: MatchState; award: StickerAward }
+  | {
+      name: 'result';
+      zone: ZoneId;
+      mode: Mode;
+      match: MatchState;
+      award: StickerAward;
+      bonuses: Bonus[];
+      newSets: StickerSet[];
+    }
   | { name: 'stickers' }
   | { name: 'settings' }
   | { name: 'report' }
-  | { name: 'changelog' };
+  | { name: 'changelog' }
+  | { name: 'profiles' }
+  | { name: 'quests' }
+  | { name: 'rest' }
+  | { name: 'backup' };
 
 export interface App {
   save: SaveData;
@@ -25,7 +39,3 @@ export interface ScreenView {
   el: HTMLElement;
   destroy?(): void;
 }
-
-// ใช้สัตว์ที่ไม่ปรากฏในโจทย์ จะได้ไม่สับสนกับภาพคำตอบ
-export const CHILD_AVATAR = '🐣';
-export const PARENT_AVATAR = '🐻';

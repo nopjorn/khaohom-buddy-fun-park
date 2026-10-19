@@ -7,3 +7,7 @@ Thumbs.db
 
 # การตั้งค่าเฉพาะเครื่อง (มี path ของ Node ในเครื่องนี้)
 .claude/
+
+# ผลของ Playwright
+test-results/
+playwright-report/

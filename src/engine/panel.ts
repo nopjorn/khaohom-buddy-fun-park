@@ -58,6 +58,7 @@ export class Panel {
   private running = false;
   private streak = 0;
   private roundMissed = false;
+  private captionEl: HTMLElement | null = null;
 
   constructor(private readonly opts: PanelOptions) {
     this.body = h('div', { class: 'panel-body' });
@@ -120,6 +121,13 @@ export class Panel {
     this.activity?.rebindKeys(this.opts.keyHalf());
   }
 
+  /** ข้อความของโจทย์สำหรับเครื่องที่ไม่มีเสียงภาษานั้น ให้ผู้ปกครองอ่านให้ลูกฟัง หายไปเมื่อขึ้นข้อใหม่ */
+  caption(text: string): void {
+    this.captionEl?.remove();
+    this.captionEl = h('div', { class: 'say-caption' }, '🗣️ ', text);
+    this.fx.append(this.captionEl);
+  }
+
   /** ป้ายคำชมที่ลอยขึ้นกลางแผง */
   cheer(text: string): void {
     const banner = h('div', { class: 'cheer' }, text);
@@ -165,6 +173,8 @@ export class Panel {
   }
 
   private mount(activity: Activity): void {
+    this.captionEl?.remove();
+    this.captionEl = null;
     this.activity = activity;
     this.roundMissed = false;
     activity.mount(this.body, {

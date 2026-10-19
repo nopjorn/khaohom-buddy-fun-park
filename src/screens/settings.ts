@@ -2,6 +2,9 @@ import type { App, ScreenView } from '../app';
 import { h, onHold } from '../core/dom';
 import { speak, voiceStatus } from '../core/speech';
 import { defaultSave } from '../core/storage';
+import { BASE_AVATARS } from '../data/avatars';
+import { MAX_PROFILES, addProfile, allProfiles, removeProfile, switchProfile } from '../engine/profiles';
+import { ALL_AVATARS, unlockedAvatars } from '../engine/stickers';
 import type { Handicap, Lang, Seating } from '../types';
 import { button, segmented, topBar } from './ui';
 
@@ -21,6 +24,25 @@ function field(label: string, control: HTMLElement, note?: string): HTMLElement 
     control,
     note ? h('div', { class: 'field-note' }, note) : null,
   );
+}
+
+const LIMITS = [0, 15, 20, 30, 45, 60];
+const DELETE_HOLD_MS = 2000;
+
+/** ตัวเลือกภาพประจำตัว ภาพที่อีกฝั่งใช้อยู่หรือยังไม่ปลดล็อกกดไม่ได้ */
+function avatarPicker(options: string[], unlocked: string[], current: string, taken: string, onPick: (a: string) => void): HTMLElement {
+  const buttons = options.map((avatar) => {
+    const open = unlocked.includes(avatar) && avatar !== taken;
+    const btn = button('seg-btn avatar-btn', unlocked.includes(avatar) ? avatar : '🔒', () => {
+      if (!open) return;
+      buttons.forEach((b) => b.classList.toggle('on', b === btn));
+      onPick(avatar);
+    });
+    btn.classList.toggle('on', avatar === current);
+    btn.disabled = !open;
+    return btn;
+  });
+  return h('div', { class: 'segmented' }, ...buttons);
 }
 
 function voiceLabel(lang: Lang): string {
@@ -52,7 +74,7 @@ export function settingsScreen(app: App): ScreenView {
   const reset = h(
     'button',
     { class: 'btn btn-hold btn-danger', type: 'button' },
-    '🗑️ ล้างระดับ สติกเกอร์ และสถิติ',
+    '🗑️ ล้างระดับ สติกเกอร์ และสถิติของลูกคนนี้',
     h('small', null, 'กดค้างไว้'),
   );
   onHold(reset, RESET_HOLD_MS, () => {
@@ -60,8 +82,43 @@ export function settingsScreen(app: App): ScreenView {
     app.save.stickers = [];
     app.save.plays = 0;
     app.save.stats = {};
+    app.save.days = {};
     app.persist();
     reset.replaceChildren('ล้างเรียบร้อยแล้ว ✓');
+  });
+
+  // ลูกหลายคน: ลูกที่กำลังเล่นแก้ชื่อและภาพได้ด้านล่าง คนอื่นสลับไปเล่นหรือลบได้ที่นี่
+  const reload = () => app.go({ name: 'settings' });
+  const profiles = allProfiles(app.save);
+  const profileRows = profiles.map((p) => {
+    const row = h('div', { class: 'profile-row' }, h('span', { class: 'profile-name' }, `${p.childAvatar} ${p.childName}`));
+    if (p.id === app.save.profileId) {
+      row.append(h('span', { class: 'report-level' }, 'กำลังเล่น'));
+      return row;
+    }
+    const remove = h('button', { class: 'btn btn-small btn-hold btn-danger', type: 'button' }, '🗑️ ลบ', h('small', null, 'กดค้าง'));
+    onHold(remove, DELETE_HOLD_MS, () => {
+      app.save = removeProfile(app.save, p.id);
+      app.persist();
+      reload();
+    });
+    row.append(
+      button('btn btn-small', '▶ เล่นเป็นคนนี้', () => {
+        app.save = switchProfile(app.save, p.id);
+        app.persist();
+        reload();
+      }),
+      remove,
+    );
+    return row;
+  });
+  const newName = h('input', { class: 'input', type: 'text', maxlength: '12', placeholder: 'ชื่อลูกอีกคน' });
+  const addChild = button('btn btn-small', '➕ เพิ่มลูก', () => {
+    const name = newName.value.trim();
+    if (!name) return;
+    app.save = addProfile(app.save, name);
+    app.persist();
+    reload();
   });
 
   const el = h(
@@ -72,9 +129,45 @@ export function settingsScreen(app: App): ScreenView {
       'div',
       { class: 'settings-list' },
       button('btn', '📊 ดูผลการเล่นของลูก', () => app.go({ name: 'report' })),
+      button('btn', '💾 สำรองและย้ายข้อมูล', () => app.go({ name: 'backup' })),
       button('btn', '📜 มีอะไรใหม่ในแต่ละรุ่น', () => app.go({ name: 'changelog' })),
       field('ชื่อลูก', nameInput('childName')),
+      field(
+        'ภาพประจำตัวลูก',
+        avatarPicker(ALL_AVATARS, unlockedAvatars(app.save.stickers), settings.childAvatar, settings.parentAvatar, (a) => {
+          settings.childAvatar = a;
+          app.persist();
+        }),
+        'สะสมสติกเกอร์ครบชุดเพื่อปลดล็อกภาพเพิ่ม',
+      ),
       field('ชื่อผู้ปกครอง', nameInput('parentName')),
+      field(
+        'ภาพประจำตัวผู้ปกครอง',
+        avatarPicker(BASE_AVATARS, BASE_AVATARS, settings.parentAvatar, settings.childAvatar, (a) => {
+          settings.parentAvatar = a;
+          app.persist();
+        }),
+      ),
+      h(
+        'div',
+        { class: 'field' },
+        h('div', { class: 'field-label' }, `ลูกในเครื่องนี้ (${profiles.length}/${MAX_PROFILES})`),
+        ...profileRows,
+        profiles.length < MAX_PROFILES ? h('div', { class: 'profile-add' }, newName, addChild) : null,
+        h('div', { class: 'field-note' }, 'ลูกแต่ละคนมีระดับ สติกเกอร์ สถิติ และภารกิจของตัวเอง เลือกคนเล่นได้ที่หน้าแรก'),
+      ),
+      field(
+        'เวลาเล่นต่อวัน',
+        segmented<string>(
+          LIMITS.map((m) => ({ value: String(m), label: m === 0 ? 'ไม่จำกัด' : `${m} นาที` })),
+          String(settings.dailyLimit),
+          (value) => {
+            settings.dailyLimit = Number(value);
+            app.persist();
+          },
+        ),
+        'ครบเวลาแล้วเกมที่เล่นอยู่จะเล่นจนจบ จากนั้นจะขึ้นหน้าพักสายตา ผู้ปกครองกดค้างเพื่อให้เล่นต่อในวันนั้นได้',
+      ),
       field(
         'แต้มต่อของผู้ปกครอง',
         segmented<Handicap>(
