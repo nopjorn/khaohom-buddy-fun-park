@@ -18,7 +18,8 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       VitePWA({
-        registerType: 'autoUpdate',
+        // ไม่โหลดรุ่นใหม่เอง เพราะจะเด้งกลางเกม ให้ผู้เล่นกดโหลดจากหน้าแรกแทน (ดู core/update.ts)
+        registerType: 'prompt',
         includeAssets: ['icons/favicon.svg', 'icons/apple-touch-icon.png'],
         manifest: {
           name: 'สวนสนุกคู่หู',

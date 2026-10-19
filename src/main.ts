@@ -3,6 +3,8 @@ import type { App, Route, ScreenView } from './app';
 import { setSoundEnabled, unlockAudio } from './core/audio';
 import { initSpeech, setSpeechEnabled, stopSpeech, unlockSpeech } from './core/speech';
 import { loadSave, writeSave } from './core/storage';
+import { initUpdates } from './core/update';
+import { changelogScreen } from './screens/changelog';
 import { homeScreen } from './screens/home';
 import { modeScreen } from './screens/mode';
 import { playScreen } from './screens/play';
@@ -38,6 +40,8 @@ function build(route: Route): ScreenView {
       return settingsScreen(app);
     case 'report':
       return reportScreen(app);
+    case 'changelog':
+      return changelogScreen(app);
   }
 }
 
@@ -74,5 +78,6 @@ document.addEventListener(
 if (navigator.maxTouchPoints === 0) document.documentElement.classList.add('use-keys');
 
 initSpeech();
+initUpdates();
 applySettings();
 app.go({ name: 'home' });

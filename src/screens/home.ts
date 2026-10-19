@@ -1,10 +1,43 @@
 import type { App, ScreenView } from '../app';
 import { h, onHold } from '../core/dom';
-import { versionLabel } from '../core/version';
+import { isUpdateReady, onUpdateReady, reloadToUpdate } from '../core/update';
+import { APP_VERSION, versionLabel } from '../core/version';
+import { CHANGELOG, unseenChanges } from '../data/changelog';
 import { STICKERS } from '../data/items';
 import { button } from './ui';
 
 const SETTINGS_HOLD_MS = 2000;
+
+// แสดงเฉพาะหน้าแรก เพราะการโหลดหน้าใหม่กลางเกมจะทำให้เกมที่เล่นอยู่หายไป
+function updateBar(): HTMLElement {
+  return h(
+    'div',
+    { class: 'update-bar' },
+    '✨ มีรุ่นใหม่แล้ว',
+    button('btn btn-go', '🔄 โหลดเลย', reloadToUpdate),
+  );
+}
+
+function whatsNew(app: App, version: string): HTMLElement {
+  const close = () => popup.remove();
+  const popup = h(
+    'div',
+    { class: 'overlay' },
+    h(
+      'div',
+      { class: 'whats-new' },
+      h('div', { class: 'overlay-title' }, '🎉 อัปเดตแล้ว'),
+      h('p', { class: 'subtitle' }, `ตอนนี้เป็นรุ่น v${version}`),
+      h(
+        'div',
+        { class: 'whats-new-row' },
+        button('btn btn-go', '📜 ดูว่ามีอะไรใหม่', () => app.go({ name: 'changelog' })),
+        button('btn', 'ปิด', close),
+      ),
+    ),
+  );
+  return popup;
+}
 
 export function homeScreen(app: App): ScreenView {
   const play = button('btn btn-go btn-xl', '▶ เล่นเลย', () => app.go({ name: 'zone' }));
@@ -21,6 +54,9 @@ export function homeScreen(app: App): ScreenView {
   );
   onHold(settings, SETTINGS_HOLD_MS, () => app.go({ name: 'settings' }));
 
+  // ให้เห็นว่าเกมที่เปิดอยู่เป็นรุ่นล่าสุดหลัง deploy หรือยัง แตะเพื่อดูว่าแต่ละรุ่นมีอะไรใหม่
+  const version = button('version version-link', versionLabel(), () => app.go({ name: 'changelog' }));
+
   const el = h(
     'div',
     { class: 'screen home' },
@@ -32,9 +68,25 @@ export function homeScreen(app: App): ScreenView {
       h('p', { class: 'subtitle' }, 'เกมสองคน เล่นพร้อมกันทั้งลูกและพ่อแม่'),
       play,
       h('div', { class: 'home-row' }, stickers, settings),
-      // ให้เห็นว่าเกมที่เปิดอยู่เป็นรุ่นล่าสุดหลัง deploy หรือยัง
-      h('div', { class: 'version' }, versionLabel()),
+      version,
     ),
   );
-  return { el };
+
+  const showUpdate = () => {
+    if (!el.querySelector('.update-bar')) el.append(updateBar());
+  };
+  if (isUpdateReady()) showUpdate();
+  const unsubscribe = onUpdateReady(showUpdate);
+
+  const { save } = app;
+  const fresh = save.plays === 0 && save.stickers.length === 0;
+  if (save.seenVersion !== APP_VERSION) {
+    if (unseenChanges(CHANGELOG, APP_VERSION, save.seenVersion, fresh).length > 0) {
+      el.append(whatsNew(app, APP_VERSION));
+    }
+    save.seenVersion = APP_VERSION;
+    app.persist();
+  }
+
+  return { el, destroy: unsubscribe };
 }

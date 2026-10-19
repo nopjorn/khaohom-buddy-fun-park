@@ -72,6 +72,7 @@ export function settingsScreen(app: App): ScreenView {
       'div',
       { class: 'settings-list' },
       button('btn', '📊 ดูผลการเล่นของลูก', () => app.go({ name: 'report' })),
+      button('btn', '📜 มีอะไรใหม่ในแต่ละรุ่น', () => app.go({ name: 'changelog' })),
       field('ชื่อลูก', nameInput('childName')),
       field('ชื่อผู้ปกครอง', nameInput('parentName')),
       field(

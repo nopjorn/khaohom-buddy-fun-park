@@ -11,6 +11,8 @@ export interface SaveData {
   plays: number;
   /** สถิติการตอบของลูกแยกตามสิ่งที่ฝึก ใช้ทวนข้อที่ผิดบ่อยและสรุปให้ผู้ปกครอง */
   stats: Stats;
+  /** รุ่นล่าสุดที่เครื่องนี้บอกผู้เล่นแล้วว่ามีอะไรใหม่ ว่างคือยังไม่เคยจำ */
+  seenVersion: string;
 }
 
 export function defaultSave(): SaveData {
@@ -28,6 +30,7 @@ export function defaultSave(): SaveData {
     stickers: [],
     plays: 0,
     stats: {},
+    seenVersion: '',
   };
 }
 
@@ -43,6 +46,7 @@ export function loadSave(): SaveData {
       stickers: Array.isArray(data.stickers) ? data.stickers : [],
       plays: typeof data.plays === 'number' ? data.plays : 0,
       stats: data.stats && typeof data.stats === 'object' ? data.stats : {},
+      seenVersion: typeof data.seenVersion === 'string' ? data.seenVersion : '',
     };
   } catch {
     return base;
