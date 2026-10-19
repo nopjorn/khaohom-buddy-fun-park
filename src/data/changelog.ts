@@ -12,6 +12,11 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    version: '1.4.1',
+    date: '2026-10-19',
+    changes: ['โหมดแข่งกัน: กดผิดซ้ำในข้อเดียวกันต้องรอนานขึ้น (1, 2 แล้ว 3 วินาที) กันการกดรัวทุกตัวเลือก ระหว่างรอปุ่มจะจางลง'],
+  },
+  {
     version: '1.4.0',
     date: '2026-10-19',
     changes: [

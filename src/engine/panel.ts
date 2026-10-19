@@ -30,6 +30,8 @@ export interface PanelOptions {
   /** streak คือจำนวนข้อที่ฝั่งนี้ตอบถูกติดกันรวมข้อนี้ */
   onCorrect(streak: number): void;
   onWrong?(): void;
+  /** เวลาพักหลังตอบผิด ไม่ใส่คือ 1 วินาที */
+  wrongLockMs?(misses: number): number;
   onAnswered?(result: AnswerResult): void;
   onLevelChange?(id: ActivityId, level: number): void;
   /** น้ำหนักในการสุ่มโจทย์ ใช้ทวนข้อที่ลูกตอบผิดบ่อย */
@@ -182,6 +184,7 @@ export class Panel {
       keyHalf: this.opts.keyHalf(),
       onCorrect: () => this.answered(true),
       onWrong: () => this.answered(false),
+      wrongLockMs: (misses) => this.opts.wrongLockMs?.(misses) ?? 1000,
       onDone: () => {
         if (this.opts.manual) this.opts.onRoundDone?.();
         else this.nextRound();

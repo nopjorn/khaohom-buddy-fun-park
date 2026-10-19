@@ -616,6 +616,11 @@ p {
   pointer-events: none;
 }
 
+/* ให้เห็นว่ากำลังพัก จะได้ไม่กดรัวต่อ */
+.quiz-choices.locked .choice:not(:disabled) {
+  opacity: 0.6;
+}
+
 /* ภาพเดียวกันหลายขนาด ใช้ถามว่าอันไหนใหญ่หรือเล็กที่สุด */
 .choice-sized .choice-label {
   font-size: calc(var(--scale, 1) * 17 * var(--u));

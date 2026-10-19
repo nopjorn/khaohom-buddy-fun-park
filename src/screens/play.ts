@@ -14,6 +14,7 @@ import {
   type MatchState,
   applyCorrect,
   applyWrong,
+  wrongLockMs,
   createMatch,
   otherSide,
 } from '../engine/match';
@@ -194,6 +195,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     keyHalf: () => keyHalfOf('child'),
     onCorrect: (streak) => correct('child', streak),
     onWrong: () => wrong(),
+    wrongLockMs: (misses) => wrongLockMs(mode, misses),
     onAnswered: (result) => {
       recordChildItem(result);
       if (talk) talkAnswered(result.missed);
@@ -218,6 +220,7 @@ export function playScreen(app: App, zone: ZoneId, mode: Mode): ScreenView {
     keyHalf: () => keyHalfOf('parent'),
     onCorrect: (streak) => correct('parent', streak),
     onWrong: () => wrong(),
+    wrongLockMs: (misses) => wrongLockMs(mode, misses),
     onAnswered: (result) => {
       if (talk) talkAnswered(result.missed);
     },

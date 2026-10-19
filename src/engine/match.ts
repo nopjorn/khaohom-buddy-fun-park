@@ -99,6 +99,15 @@ export function applyWrong(state: MatchState): MatchState {
   return { ...state, wrong: state.wrong + 1 };
 }
 
+/**
+ * เวลาพักหลังตอบผิด misses คือจำนวนครั้งที่ผิดในข้อนี้รวมครั้งนี้
+ * โหมดแข่งกันพักนานขึ้นเมื่อผิดซ้ำ เพราะเด็กมักรีบกดรัวทุกตัวเลือกเพื่อให้ชนะ
+ */
+export function wrongLockMs(mode: Mode, misses: number): number {
+  if (mode !== 'versus') return 1000;
+  return Math.min(misses, 3) * 1000;
+}
+
 /** ดาวของโหมดช่วยกัน คิดจากเวลาที่ใช้ */
 export function coopRating(state: MatchState): 1 | 2 | 3 {
   const elapsed = (state.finishedAt ?? state.startedAt) - state.startedAt;
