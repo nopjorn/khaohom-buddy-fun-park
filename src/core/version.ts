@@ -13,6 +13,8 @@ export function formatVersion(version: string, buildTime: string, commit: string
   return `v${version} · ${built} · ${commit}`;
 }
 
+export const APP_VERSION = __APP_VERSION__;
+
 export function versionLabel(): string {
   return formatVersion(__APP_VERSION__, __BUILD_TIME__, __COMMIT__);
 }

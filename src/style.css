@@ -1501,3 +1501,70 @@ p {
     transition: none !important;
   }
 }
+
+/* ---------- อัปเดตและหน้ามีอะไรใหม่ ---------- */
+
+.version-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.update-bar {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 22px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 1.15rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.update-bar .btn {
+  min-height: 56px;
+  padding: 6px 22px;
+  font-size: 1.15rem;
+}
+
+.whats-new {
+  width: min(92%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 26px 22px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.whats-new-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.changelog-date {
+  margin-left: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.changelog-list {
+  margin: 0;
+  padding-left: 1.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 1.1rem;
+  line-height: 1.45;
+}

@@ -11,7 +11,8 @@ export type Route =
   | { name: 'result'; zone: ZoneId; mode: Mode; match: MatchState; award: StickerAward }
   | { name: 'stickers' }
   | { name: 'settings' }
-  | { name: 'report' };
+  | { name: 'report' }
+  | { name: 'changelog' };
 
 export interface App {
   save: SaveData;
